@@ -156,7 +156,7 @@ fastify.get('/viewer/wadouri', async (req, reply) => {
 
 logger.info("starting...");
 
-fastify.listen(httpPort, async (err, address) => {
+fastify.listen(httpPort, '0.0.0.0', async (err, address) => {
   if (err) {
     await logger.error(err, address);
     process.exit(1);
