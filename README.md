@@ -32,5 +32,7 @@ A proxy to forward dicomweb requests via websockets to a local server
 * start proxy:  
 ```npm start```
 
+* run an instance of DICOMWEB-PROXY somewhere that is configured to connect to this bridge
+
 ## License
 MIT
