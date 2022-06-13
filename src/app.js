@@ -10,17 +10,17 @@ const utils = require("./utils");
 
 let connectedClient = null;
 
-fastify.register(require("fastify-static"), {
+fastify.register(require("@fastify/static"), {
   root: path.join(__dirname, "../public"),
 });
 
-fastify.register(require("fastify-cors"), {});
+fastify.register(require("@fastify/cors"), {});
 
-fastify.register(require("fastify-sensible"));
+fastify.register(require("@fastify/sensible"));
 
-fastify.register(require("fastify-helmet"), { contentSecurityPolicy: false });
+fastify.register(require("@fastify/helmet"), { contentSecurityPolicy: false });
 
-fastify.register(require("fastify-compress"), { global: true });
+fastify.register(require("@fastify/compress"), { global: true });
 
 const logger = utils.getLogger();
 
