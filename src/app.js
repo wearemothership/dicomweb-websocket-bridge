@@ -1,5 +1,6 @@
 const config = require("config");
 const { v4: uuidv4 } = require('uuid');
+const socketIOStream = require("socket.io-stream");
 
 const httpPort = config.get("webserverPort");
 const wsPort = config.get("websocketPort");
@@ -10,17 +11,17 @@ const utils = require("./utils");
 
 let connectedClient = null;
 
-fastify.register(require("fastify-static"), {
+fastify.register(require("@fastify/static"), {
   root: path.join(__dirname, "../public"),
 });
 
-fastify.register(require("fastify-cors"), {});
+fastify.register(require("@fastify/cors"), {});
 
-fastify.register(require("fastify-sensible"));
+fastify.register(require("@fastify/sensible"));
 
-fastify.register(require("fastify-helmet"), { contentSecurityPolicy: false });
+fastify.register(require("@fastify/helmet"), { contentSecurityPolicy: false });
 
-fastify.register(require("fastify-compress"), { global: true });
+fastify.register(require("@fastify/compress"), { global: true });
 
 const logger = utils.getLogger();
 
@@ -36,7 +37,32 @@ const emitToWsClient = (reply, level, query) => {
       reply.send(data);
     });
   
-    connectedClient.emit('qido-request', { level, query, uuid });
+    connectedClient.emit("qido-request", { level, query, uuid });
+  }
+}
+
+const emitToWadoWsClient = (reply, query) => {
+  if (!connectedClient) {
+    const msg = 'no ws client connected, cannot emit';
+    logger.error(msg);
+    reply.send(msg);
+  } else {
+    const uuid = uuidv4();
+    reply.hijack()
+    socketIOStream(connectedClient).on(uuid, (stream, headers) => {
+      const { contentType } = headers;
+      reply.raw.writeHead(200, { 'Content-Type': contentType });
+      const bufferData = []
+      stream.on("data", (data) => {
+        bufferData.push(data)
+      })
+      stream.on("end", () => {
+        const b = Buffer.concat(bufferData)
+        reply.raw.write(b)
+        reply.raw.end()
+      })
+    });
+    connectedClient.emit("wado-request", { query, uuid });
   }
 }
 
@@ -70,11 +96,10 @@ io.on("connection", (socket) => {
   logger.info(`websocket client connected from origin: ${origin}`);
   connectedClient = socket;
 
-  socket.on("disconnect", () => {
-    logger.info(`websocket client disconnected, origin: ${origin}`);
+  socket.on("disconnect", (reason) => {
+    logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
     connectedClient = null;
   });
-
 });
 
 //------------------------------------------------------------------
@@ -101,8 +126,10 @@ fastify.get('/viewer/rs/studies', (req, reply) => {
 
 //------------------------------------------------------------------
 
-fastify.get('/rs/studies', async (req, reply) => {
-  emitToWsClient(reply, 'STUDY', req.query);
+fastify.get('/viewer/rs/studies/:studyInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  emitToWadoWsClient(reply, req.query);
 });
 
 //------------------------------------------------------------------
@@ -123,11 +150,30 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series', async (req, reply) =>
 
 //------------------------------------------------------------------
 
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
 fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
   emitToWsClient(reply, 'IMAGE', query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  emitToWadoWsClient(reply, req.query);
 });
 
 //------------------------------------------------------------------
@@ -141,22 +187,24 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/meta
 
 //------------------------------------------------------------------
 
-fastify.get('/viewer/wadouri', async (req, reply) => {
+fastify.get('/viewer/wadouri', (req, reply) => new Promise((resolve) => {
   const uuid = uuidv4();
 
   connectedClient.once(uuid, (data) => {
-    reply.header('Content-Type', 'application/dicom');
-    reply.send(data);
+    reply.header('Content-Type', data.contentType);
+    reply.send(data.buffer);
+    resolve();
   });
+
   const { query } = req;
   connectedClient.emit('wadouri-request', { query, uuid });
-});
+}));
 
 //------------------------------------------------------------------
 
 logger.info("starting...");
 
-fastify.listen(httpPort, '0.0.0.0', async (err, address) => {
+fastify.listen({ port: httpPort, host: '0.0.0.0' }, async (err, address) => {
   if (err) {
     await logger.error(err, address);
     process.exit(1);
