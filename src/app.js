@@ -1,9 +1,10 @@
 const config = require("config");
 const { v4: uuidv4 } = require('uuid');
-const socketIOStream = require("socket.io-stream");
+const socketIOStream = require("@wearemothership/socket.io-stream");
 
 const httpPort = config.get("webserverPort");
 const wsPort = config.get("websocketPort");
+const defaultToken = config.get("websocketToken");
 const io = require("socket.io")(wsPort);
 const path = require("path");
 const fastify = require("fastify")({ logger: false, bodyLimit: 20971520 }); // 20MB
@@ -160,6 +161,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", (reason) => {
     logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
+    delete connectedClients[token]
   });
 });
 
@@ -172,15 +174,14 @@ fastify.addHook("onRequest", async (request) => {
     try {
       const { websocketToken } = jsonwebtoken.verify(token, config.jwtPacsSecret, { issuer: config.jwtPacsIssuer })
       logger.info(websocketToken, " ", request.url, " ", request.method)
-      request.websocketToken = websocketToken;
+      request.websocketToken = websocketToken || defaultToken;
     }
     catch (e) {
-      logger.error("Error on token", e);
-      throw e;
+      request.websocketToken = defaultToken;
     }
   }
   else {
-    throw new Error("Missing auth header");
+    request.websocketToken = defaultToken;
   }
 })
 
