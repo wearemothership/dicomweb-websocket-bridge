@@ -84,6 +84,48 @@ const emitToWadoWsClient = (reply, query, token) => new Promise((resolve) => {
   }
 })
 
+const emitToStowRsClient = (reply, body, token, type) => new Promise((resolve) => {
+  const client = connectedClients[token];
+  if (!client || client.handshake.auth.token !== token) {
+    const msg = 'no ws client connected, cannot emit';
+    logger.error(msg);
+    reply.send(msg);
+    resolve();
+  } else {
+    const uuid = uuidv4();
+    const stream = socketIOStream.createStream()
+    socketIOStream(client).emit("stow-request", stream, { contentType: type, uuid })
+    client.once(uuid, (data) => {
+      if (data instanceof Error) {
+        reply.status(500)
+      }
+      reply.send(data)
+      resolve()
+    });
+    logger.info(body.length, token, type)
+    let offset = 0;
+    const chunkSize = 512*1024 // 512kb
+    const writeBuffer = () => {
+      let ok = true;
+      do {
+        const b = Buffer.alloc(chunkSize)
+        body.copy(b, 0, offset, offset + chunkSize)
+        ok = stream.write(b)
+        offset += chunkSize
+      } while (offset < body.length && ok)
+      if (offset < body.length) {
+        stream.once("drain", writeBuffer)
+      }
+      else {
+        stream.end()
+      }
+    }
+    writeBuffer()
+  
+    client.emit("stow-request", { type, body, uuid });
+  }
+})
+
 // log exceptions
 process.on("uncaughtException", async (err) => {
   await logger.error("uncaught exception received:");
@@ -202,11 +244,29 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
 
 //------------------------------------------------------------------
 
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/metadata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  return emitToWsClient(reply, 'IMAGE', query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
 fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
   return emitToWsClient(reply, 'IMAGE', query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+fastify.put('/viewer/rs/studies', async (req, reply) => {
+  const { headers, multipart, websocketToken } = req;
+  const type = headers["content-type"];
+  return emitToStowRsClient(reply, multipart, websocketToken, type)
 });
 
 //------------------------------------------------------------------
