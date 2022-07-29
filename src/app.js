@@ -1,6 +1,6 @@
 const config = require("config");
 const { v4: uuidv4 } = require('uuid');
-const socketIOStream = require("socket.io-stream");
+const socketIOStream = require("@wearemothership/socket.io-stream");
 
 const httpPort = config.get("webserverPort");
 const wsPort = config.get("websocketPort");
