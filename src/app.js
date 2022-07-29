@@ -118,6 +118,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", (reason) => {
     logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
+    delete connectedClients[token]
   });
 });
 
