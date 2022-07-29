@@ -6,10 +6,9 @@ const httpPort = config.get("webserverPort");
 const wsPort = config.get("websocketPort");
 const io = require("socket.io")(wsPort);
 const path = require("path");
-const fastify = require("fastify")({ logger: false });
+const fastify = require("fastify")({ logger: false, bodyLimit: 20971520 }); // 20MB
+const jsonwebtoken = require("jsonwebtoken")
 const utils = require("./utils");
-
-let connectedClient = null;
 
 fastify.register(require("@fastify/static"), {
   root: path.join(__dirname, "../public"),
@@ -23,48 +22,67 @@ fastify.register(require("@fastify/helmet"), { contentSecurityPolicy: false });
 
 fastify.register(require("@fastify/compress"), { global: true });
 
+fastify.decorateRequest("multipart")
+fastify.addContentTypeParser("multipart/related", { parseAs: "buffer" }, async (request, payload) => {
+  request.multipart = payload
+})
+
 const logger = utils.getLogger();
 
-const emitToWsClient = (reply, level, query) => {
-  if (!connectedClient) {
+const connectedClients = {}
+
+const emitToWsClient = (reply, level, query, token) => new Promise((resolve) => {
+  const client = connectedClients[token]
+  if (!client || client.handshake.auth.token !== token) {
     const msg = 'no ws client connected, cannot emit';
     logger.error(msg);
     reply.send(msg);
+    resolve();
   } else {
     const uuid = uuidv4();
-
-    connectedClient.once(uuid, (data) => {
+    client.once(uuid, (data) => {
+      if (data instanceof Error) {
+        reply.status(500)
+      }
       reply.send(data);
+      resolve()
     });
   
-    connectedClient.emit("qido-request", { level, query, uuid });
+    client.emit("qido-request", { level, query, uuid });
   }
-}
+})
 
-const emitToWadoWsClient = (reply, query) => {
-  if (!connectedClient) {
+const emitToWadoWsClient = (reply, query, token) => new Promise((resolve) => {
+  const client = connectedClients[token]
+  if (!client || client.handshake.auth.token !== token) {
     const msg = 'no ws client connected, cannot emit';
     logger.error(msg);
     reply.send(msg);
+    resolve()
   } else {
     const uuid = uuidv4();
-    reply.hijack()
-    socketIOStream(connectedClient).on(uuid, (stream, headers) => {
+    socketIOStream(client).on(uuid, (stream, headers) => {
       const { contentType } = headers;
-      reply.raw.writeHead(200, { 'Content-Type': contentType });
+      reply.status(200)
+      reply.header("content-type", contentType)
       const bufferData = []
       stream.on("data", (data) => {
         bufferData.push(data)
       })
       stream.on("end", () => {
         const b = Buffer.concat(bufferData)
-        reply.raw.write(b)
-        reply.raw.end()
+        reply.send(b)
+        resolve()
       })
     });
-    connectedClient.emit("wado-request", { query, uuid });
+    client.on(uuid, (resp) => {
+      if (resp instanceof Error) {
+        reply.status(500).send(resp)
+      }
+    })
+    client.emit("wado-request", { query, uuid });
   }
-}
+})
 
 // log exceptions
 process.on("uncaughtException", async (err) => {
@@ -94,42 +112,48 @@ process.on("SIGINT", async () => {
 io.on("connection", (socket) => {
   const origin = socket.conn.remoteAddress;
   logger.info(`websocket client connected from origin: ${origin}`);
-  connectedClient = socket;
+  const { token } = socket.handshake.auth;
+  logger.info("Added socket to clients", token)
+  connectedClients[token] = socket;
 
   socket.on("disconnect", (reason) => {
     logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
-    connectedClient = null;
   });
 });
 
-//------------------------------------------------------------------
+fastify.decorateRequest("websocketToken", "");
 
-io.use((socket, next) => {
-
-  const {token} = socket.handshake.auth;
-
-  if (token === config.get('websocketToken')) {
-    next();
+fastify.addHook("onRequest", async (request) => {
+  const { headers } = request;
+  const token = headers.authorization.replace(/bearer /ig, "");
+  if (token) {
+    try {
+      const { websocketToken } = jsonwebtoken.verify(token, config.jwtPacsSecret, { issuer: config.jwtPacsIssuer })
+      logger.info(websocketToken, " ", request.url, " ", request.method)
+      request.websocketToken = websocketToken;
+    }
+    catch (e) {
+      logger.error("Error on token", e);
+      throw e;
+    }
   }
   else {
-    const err = new Error("not authorized");
-    logger.error('invalid auth token passed, this might be an attack, token used: ', token);
-    next(err);
+    throw new Error("Missing auth header");
   }
-});
+})
 
 //------------------------------------------------------------------
 
-fastify.get('/viewer/rs/studies', (req, reply) => {
-  emitToWsClient(reply, 'STUDY', req.query);
-});
+fastify.get('/viewer/rs/studies', (req, reply) => (
+  emitToWsClient(reply, 'STUDY', req.query, req.websocketToken)
+));
 
 //------------------------------------------------------------------
 
 fastify.get('/viewer/rs/studies/:studyInstanceUid', async (req, reply) => {
   const { query } = req;
   query.studyInstanceUid = req.params.studyInstanceUid;
-  emitToWadoWsClient(reply, req.query);
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -137,7 +161,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid', async (req, reply) => {
 fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  emitToWsClient(reply, 'SERIES', query);
+  return emitToWsClient(reply, 'SERIES', query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -145,7 +169,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) 
 fastify.get('/viewer/rs/studies/:studyInstanceUid/series', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  emitToWsClient(reply, 'SERIES', query);
+  return emitToWsClient(reply, 'SERIES', query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -154,7 +178,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid', as
   const { query } = req;
   query.studyInstanceUid = req.params.studyInstanceUid;
   query.seriesInstanceUid = req.params.seriesInstanceUid;
-  emitToWadoWsClient(reply, req.query);
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -163,7 +187,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  emitToWsClient(reply, 'IMAGE', query);
+  return emitToWsClient(reply, 'IMAGE', query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -173,7 +197,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
   query.studyInstanceUid = req.params.studyInstanceUid;
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.sopInstanceUid = req.params.sopInstanceUid;
-  emitToWadoWsClient(reply, req.query);
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -182,7 +206,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/meta
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  emitToWsClient(reply, 'IMAGE', query);
+  return emitToWsClient(reply, 'IMAGE', query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -190,14 +214,22 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/meta
 fastify.get('/viewer/wadouri', (req, reply) => new Promise((resolve) => {
   const uuid = uuidv4();
 
-  connectedClient.once(uuid, (data) => {
-    reply.header('Content-Type', data.contentType);
-    reply.send(data.buffer);
-    resolve();
-  });
+  const client = connectedClients[req.websocketToken]
+  if (!client || client.handshake.auth !== req.websocketToken) {
+    client.once(uuid, (data) => {
+      reply.header('Content-Type', data.contentType);
+      reply.send(data.buffer);
+      resolve();
+    });
 
-  const { query } = req;
-  connectedClient.emit('wadouri-request', { query, uuid });
+    const { query } = req;
+    client.emit('wadouri-request', { query, uuid });
+  }
+  else {
+    const msg = 'no ws client connected, cannot emit';
+    logger.error(msg);
+    reply.send(msg);
+  }
 }));
 
 //------------------------------------------------------------------
