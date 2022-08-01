@@ -5,6 +5,11 @@ import { Server } from "socket.io";
 import path from "path";
 import fastify from "fastify";
 import jsonwebtoken from "jsonwebtoken";
+import fastifyStatic from '@fastify/static';
+import fastifyCors from '@fastify/cors';
+import fastifySensible from '@fastify/sensible';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyCompress from '@fastify/compress';
 import utils from "./utils";
 
 declare module "fastify" {
@@ -26,17 +31,17 @@ const io = new Server(wsPort);
 
 const server = fastify({ logger: false, bodyLimit: 20971520 });
 
-server.register(require("@fastify/static"), {
+server.register(fastifyStatic, {
   root: path.join(__dirname, "../public"),
 });
 
-server.register(require("@fastify/cors"), {});
+server.register(fastifyCors, {});
 
-server.register(require("@fastify/sensible"));
+server.register(fastifySensible);
 
-server.register(require("@fastify/helmet"), { contentSecurityPolicy: false });
+server.register(fastifyHelmet, { contentSecurityPolicy: false });
 
-server.register(require("@fastify/compress"), { global: true });
+server.register(fastifyCompress, { global: true });
 
 server.decorateRequest("multipart", "");
 server.addContentTypeParser("multipart/related", { parseAs: "buffer" }, async (request, payload) => {
