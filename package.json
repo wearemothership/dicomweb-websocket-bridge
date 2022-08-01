@@ -46,6 +46,17 @@
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "prettier": "^2.7.1"
+    "prettier": "^2.7.1",
+    "config": "^3.3.7",
+    "fastify": "^4.0.0",
+    "@fastify/compress": "^6.0.0",
+    "@fastify/cors": "^8.0.0",
+    "@fastify/helmet": "^9.1.0",
+    "@fastify/sensible": "^5.0.0",
+    "@fastify/static": "^6.4.0",
+    "shelljs": "^0.8.5",
+    "simple-node-logger": "^21.8.12",
+    "socket.io": "^4.5.1",
+    "uuid": "^8.3.2"
   }
 }
