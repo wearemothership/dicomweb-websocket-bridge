@@ -232,6 +232,30 @@ server.get<{
 server.get<{
   Querystring: QueryParams
   Params: { studyInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/metadata", async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
@@ -266,6 +290,32 @@ server.get<{
 server.get<{
   Querystring: QueryParams
   Params: { studyInstanceUid: string, seriesInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string, seriesInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string, seriesInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances", async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
@@ -283,6 +333,34 @@ server.get<{
   query.studyInstanceUid = req.params.studyInstanceUid;
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.sopInstanceUid = req.params.sopInstanceUid;
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
+}>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "pixeldata"
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
