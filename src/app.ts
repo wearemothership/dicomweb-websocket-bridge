@@ -278,7 +278,7 @@ server.get<{
 }>("/viewer/rs/studies/:studyInstanceUid/metadata", async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  return emitToWsClient(reply, "SERIES", query, req.websocketToken);
+  return emitToWsClient(reply, "STUDY", query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -328,6 +328,18 @@ server.get<{
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.dataFormat = "pixeldata";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
+});
+
+//------------------------------------------------------------------
+
+server.get<{
+  Querystring: QueryParams
+  Params: { studyInstanceUid: string, seriesInstanceUid: string }
+}>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata", async (req, reply) => {
+  const { query } = req;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  return emitToWsClient(reply, "SERIES", query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
