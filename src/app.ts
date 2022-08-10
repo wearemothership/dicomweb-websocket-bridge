@@ -410,18 +410,6 @@ server.get<{
 
 //------------------------------------------------------------------
 
-server.get<{
-  Querystring: QueryParams
-  Params: { studyInstanceUid: string, seriesInstanceUid: string }
-}>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata", async (req, reply) => {
-  const { query } = req;
-  query.StudyInstanceUID = req.params.studyInstanceUid;
-  query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  return emitToWsClient(reply, "IMAGE", query, req.websocketToken);
-});
-
-//------------------------------------------------------------------
-
 server.post("/viewer/rs/studies", async (req, reply) => {
   const { headers, multipart, websocketToken } = req;
   const type = headers["content-type"];
