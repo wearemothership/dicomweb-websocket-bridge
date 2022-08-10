@@ -144,6 +144,24 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid', async (req, reply) => {
 
 //------------------------------------------------------------------
 
+fastify.get('/viewer/rs/studies/:studyInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
 fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
@@ -169,6 +187,26 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid', as
 
 //------------------------------------------------------------------
 
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
 fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
@@ -183,6 +221,28 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
   query.studyInstanceUid = req.params.studyInstanceUid;
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.sopInstanceUid = req.params.sopInstanceUid;
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "pixeldata"
   return emitToWadoWsClient(reply, req.query);
 });
 
