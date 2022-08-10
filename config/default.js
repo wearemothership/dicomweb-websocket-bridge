@@ -13,4 +13,6 @@ config.jwtPacsSecret = "YOUR SECRET HERE";
 
 config.jwtPacsIssuer = "YOUR ISSUER HERE";
 
+config.certificatePath = "/etc/letsencrypt/live/dev-pacs.vpop-pro.com/fullchain.pem";
+
 module.exports = config;

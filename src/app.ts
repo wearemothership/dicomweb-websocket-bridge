@@ -11,6 +11,9 @@ import fastifySensible from '@fastify/sensible';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyCompress from '@fastify/compress';
 import utils from "./utils";
+import httpsServer from "https";
+import { readFileSync } from "fs";
+import knownOrigins from "../config/knownOrigins";
 
 declare module "fastify" {
   // eslint-disable-next-line no-unused-vars
@@ -27,8 +30,24 @@ interface QueryParams {
 const httpPort = config.get("webserverPort") as number;
 const wsPort = config.get("websocketPort") as number;
 const defaultToken = config.get("websocketToken") as string;
-const io = new Server(wsPort);
+const httpServer = httpsServer.createServer({
+  key: readFileSync(config.get("certificateKeyPath"), "utf8"),
+  cert: readFileSync(config.get("certificatePath"), "utf8"),
+  ca: [readFileSync(config.get("certificateChainPath"), "utf8")],
+  crl: [readFileSync(config.get("certificateRevocationList"), "utf8")],
+  requestCert: true,
+  rejectUnauthorized: true
+})
 
+const io = new Server(httpServer, {
+  cors: {
+    origin: knownOrigins,
+    methods: ["GET", "OPTIONS", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Type", "Authorization"]
+  }
+});
+httpServer.listen(wsPort)
 const server = fastify({ logger: false, bodyLimit: 20971520 });
 
 server.register(fastifyStatic, {
@@ -223,7 +242,7 @@ server.get<{
   Params: { studyInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid", async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
@@ -256,8 +275,8 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid", async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
@@ -280,9 +299,9 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid", async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
-  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
+  query.SOPInstanceUID = req.params.sopInstanceUid;
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
 
@@ -293,9 +312,9 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/metadata", async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
-  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
+  query.SOPInstanceUID = req.params.sopInstanceUid;
   return emitToWsClient(reply, "IMAGE", query, req.websocketToken);
 });
 
@@ -313,7 +332,7 @@ server.get<{
 
 //------------------------------------------------------------------
 
-server.put("/viewer/rs/studies", async (req, reply) => {
+server.post("/viewer/rs/studies", async (req, reply) => {
   const { headers, multipart, websocketToken } = req;
   const type = headers["content-type"];
   return emitToStowRsClient(reply, multipart, websocketToken, type);
