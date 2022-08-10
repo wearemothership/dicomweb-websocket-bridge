@@ -162,6 +162,15 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply)
 
 //------------------------------------------------------------------
 
+fastify.get('/viewer/rs/studies/:studyInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "thumbnail";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
 fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
@@ -202,6 +211,16 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixe
   query.studyInstanceUid = req.params.studyInstanceUid;
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "thumbnail";
   return emitToWadoWsClient(reply, req.query);
 });
 
@@ -252,6 +271,17 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.sopInstanceUid = req.params.sopInstanceUid;
   query.dataFormat = "pixeldata"
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "thumbnail"
   return emitToWadoWsClient(reply, req.query);
 });
 
