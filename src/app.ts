@@ -253,7 +253,7 @@ server.get<{
   Params: { studyInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/rendered', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
   query.dataFormat = "rendered";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
@@ -265,7 +265,7 @@ server.get<{
   Params: { studyInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
   query.dataFormat = "pixeldata";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
@@ -311,8 +311,8 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/rendered', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
   query.dataFormat = "rendered";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
@@ -324,8 +324,8 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixeldata', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
   query.dataFormat = "pixeldata";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
@@ -338,7 +338,7 @@ server.get<{
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata", async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
   return emitToWsClient(reply, "SERIES", query, req.websocketToken);
 });
 
@@ -374,9 +374,9 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/rendered', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
-  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
+  query.SOPInstanceUID = req.params.sopInstanceUid;
   query.dataFormat = "rendered";
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
@@ -388,9 +388,9 @@ server.get<{
   Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
 }>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/pixeldata', async (req, reply) => {
   const { query } = req;
-  query.studyInstanceUid = req.params.studyInstanceUid;
-  query.seriesInstanceUid = req.params.seriesInstanceUid;
-  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.SeriesInstanceUID = req.params.seriesInstanceUid;
+  query.SOPInstanceUID = req.params.sopInstanceUid;
   query.dataFormat = "pixeldata"
   return emitToWadoWsClient(reply, req.query, req.websocketToken);
 });
