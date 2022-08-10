@@ -165,7 +165,7 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply)
 fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  return emitToWsClient(reply, 'SERIES', query);
+  return emitToWsClient(reply, 'STUDY', query);
 });
 
 //------------------------------------------------------------------
@@ -203,6 +203,15 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixe
   query.seriesInstanceUid = req.params.seriesInstanceUid;
   query.dataFormat = "pixeldata";
   return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata", async (req, reply) => {
+  const { query } = req;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  return emitToWsClient(reply, "SERIES", query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
