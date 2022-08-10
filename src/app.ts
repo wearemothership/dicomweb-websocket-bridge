@@ -441,20 +441,6 @@ server.get<{
 server.get<{
   Querystring: QueryParams
   Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
-}>('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/thumbnail', async (req, reply) => {
-  const { query } = req;
-  query.StudyInstanceUID = req.params.studyInstanceUid;
-  query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  query.SOPInstanceUID = req.params.sopInstanceUid;
-  query.dataFormat = "thumbnail"
-  return emitToWadoWsClient(reply, req.query, req.websocketToken);
-});
-
-//------------------------------------------------------------------
-
-server.get<{
-  Querystring: QueryParams
-  Params: { studyInstanceUid: string, seriesInstanceUid: string, sopInstanceUid: string }
 }>("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/metadata", async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
