@@ -1,8 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const path = require('path')
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-require('dotenv-safe').config({ path: path.resolve('./.env') })
-
 module.exports = {
   apps: [{
     name: 'DicomWeb-Websocket-Bridge',
