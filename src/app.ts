@@ -12,6 +12,7 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyCompress from '@fastify/compress';
 import utils from "./utils";
 import httpsServer from "https";
+import httpServer from "http";
 import { readFileSync } from "fs";
 import knownOrigins from "../config/knownOrigins";
 
@@ -30,24 +31,36 @@ interface QueryParams {
 const httpPort = config.get("webserverPort") as number;
 const wsPort = config.get("websocketPort") as number;
 const defaultToken = config.get("websocketToken") as string;
-const httpServer = httpsServer.createServer({
-  key: readFileSync(config.get("certificateKeyPath"), "utf8"),
-  cert: readFileSync(config.get("certificatePath"), "utf8"),
-  ca: [readFileSync(config.get("certificateChainPath"), "utf8")],
-  crl: [readFileSync(config.get("certificateRevocationList"), "utf8")],
-  requestCert: true,
-  rejectUnauthorized: true
-})
+const secure = config.get("secure") === "true" ? true : false;
+const withCors = config.get("withCors") === "true" ? true : false;
+let webServer;
 
-const io = new Server(httpServer, {
+if (secure) {
+  webServer = httpsServer.createServer({
+    key: readFileSync(config.get("certificateKeyPath"), "utf8"),
+    cert: readFileSync(config.get("certificatePath"), "utf8"),
+    ca: [readFileSync(config.get("certificateChainPath"), "utf8")],
+    crl: [readFileSync(config.get("certificateRevocationList"), "utf8")],
+    requestCert: true,
+    rejectUnauthorized: true
+  })
+}
+else {
+  webServer = httpServer.createServer();
+}
+
+let ioOptions = withCors ? {
   cors: {
     origin: knownOrigins,
     methods: ["GET", "OPTIONS", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Type", "Authorization"]
   }
-});
-httpServer.listen(wsPort)
+} : undefined
+
+const io = new Server(webServer, ioOptions);
+webServer.listen(wsPort)
+
 const server = fastify({ logger: false, bodyLimit: 20971520 });
 
 server.register(fastifyStatic, {

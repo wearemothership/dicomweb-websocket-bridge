@@ -13,6 +13,16 @@ config.jwtPacsSecret = "YOUR SECRET HERE";
 
 config.jwtPacsIssuer = "YOUR ISSUER HERE";
 
-config.certificatePath = "/etc/letsencrypt/live/dev-pacs.vpop-pro.com/fullchain.pem";
+config.secure = "true";
+
+config.withCors = "true";
+
+config.certificateKeyPath = "c:/your/key/path";
+
+config.certificatePath = "c:/your/cert/path";
+
+config.certificateChainPath = "c:/your/chain/path";
+
+config.certificateRevocationList = "c:/your/revocation/path";
 
 module.exports = config;
