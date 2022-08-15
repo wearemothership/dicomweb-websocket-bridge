@@ -1,0 +1,44 @@
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const path = require('path')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+require('dotenv-safe').config({ path: path.resolve('./.env') })
+
+module.exports = {
+  apps: [{
+    name: 'DicomWeb-Websocket-Bridge',
+    script: '.',
+    watch: '.',
+    watch_options: {
+      followSymlinks: false
+    },
+    instances: 2,
+    log_date_format: 'YYYY-MM-DDTHH:mm:ssZ',
+    wait_ready: true,
+    exec_mode: 'cluster',
+    env_development: {
+      NODE_ENV: 'development'
+    },
+    env_production: {
+      NODE_ENV: 'production'
+    }
+  }],
+
+  deploy: {
+    dev: {
+      user: 'root',
+      host: 'dev-pacs.vpop-pro.com',
+      ref: 'origin/main',
+      repo: 'git@github.com:wearemothership/dicomweb-websocket-bridge.git',
+      path: '/root/dev/dicomweb-websocket-bridge',
+      'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production --update-env'
+    },
+    production: {
+      user: 'root',
+      host: 'pacs.vpop-pro.com',
+      ref: 'origin/main',
+      repo: 'git@github.com:wearemothership/dicomweb-websocket-bridge.git',
+      path: '/root/dev/dicomweb-websocket-bridge',
+      'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production --update-env'
+    }
+  }
+}

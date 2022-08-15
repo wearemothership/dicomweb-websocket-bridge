@@ -3,7 +3,9 @@
   "version": "1.0.1",
   "description": "Redirect dicomweb traffic over websockets to a local PACS server",
   "scripts": {
-    "start": "ts-node src/app.ts"
+    "start": "ts-node src/app.ts",
+    "deploy": "pm2 deploy ecosystem.config.js dev",
+    "deploy-prod": "pm2 deploy ecosystem.config.js production"
   },
   "repository": {
     "type": "git",
