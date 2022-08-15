@@ -31,11 +31,12 @@ interface QueryParams {
 const httpPort = config.get("webserverPort") as number;
 const wsPort = config.get("websocketPort") as number;
 const defaultToken = config.get("websocketToken") as string;
-const secure = config.get("secure") === "true" ? true : false;
-const withCors = config.get("withCors") === "true" ? true : false;
+const secure = config.get("secure");
+const withCors = config.get("withCors");
 let webServer;
 
 if (secure) {
+  console.info("Starting secure server")
   webServer = httpsServer.createServer({
     key: readFileSync(config.get("certificateKeyPath"), "utf8"),
     cert: readFileSync(config.get("certificatePath"), "utf8"),
@@ -46,6 +47,7 @@ if (secure) {
   })
 }
 else {
+  console.warn("Starting insecure server")
   webServer = httpServer.createServer();
 }
 
