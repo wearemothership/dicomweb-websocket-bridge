@@ -23,7 +23,7 @@ module.exports = {
       user: 'root',
       host: 'dev-pacs.vpop-pro.com',
       ref: 'origin/main',
-      repo: 'git@github.com:wearemothership/dicomweb-websocket-bridge.git',
+      repo: 'git@github.com-bridge:wearemothership/dicomweb-websocket-bridge.git',
       path: '/root/dev/dicomweb-websocket-bridge',
       'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production --update-env'
     },
@@ -31,7 +31,7 @@ module.exports = {
       user: 'root',
       host: 'pacs.vpop-pro.com',
       ref: 'origin/main',
-      repo: 'git@github.com:wearemothership/dicomweb-websocket-bridge.git',
+      repo: 'git@github.com-bridge:wearemothership/dicomweb-websocket-bridge.git',
       path: '/root/dev/dicomweb-websocket-bridge',
       'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production --update-env'
     }
