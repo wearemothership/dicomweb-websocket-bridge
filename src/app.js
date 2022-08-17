@@ -70,6 +70,7 @@ const emitToWadoWsClient = (reply, query) => new Promise((resolve) => {
     connectedClient.on(uuid, (resp) => {
       if (resp instanceof Error) {
         reply.status(500).send(resp)
+        resolve()
       }
     })
     connectedClient.emit("wado-request", { query, uuid });
