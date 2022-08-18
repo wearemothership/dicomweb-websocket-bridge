@@ -1,7 +1,8 @@
 {
     "env": {
         "browser": true,
-        "es2021": true
+        "es2021": true,
+        "jest": true
     },
     "extends": [
         "airbnb-base"
@@ -12,7 +13,7 @@
         "sourceType": "module"
     },
     "plugins": [
-        "@typescript-eslint", "plugin:import/errors", "plugin:import/warnings", "plugin:import/typescript"
+        "@typescript-eslint"
     ],
     "rules": {
         "indent": ["error", 2],
@@ -25,7 +26,8 @@
             "json": "always"
         }],
         "semi": ["error", "always"],
-        "import/default": 0
+        "import/default": 0,
+        "comma-dangle": "off"
       },
       "settings": {
         "import/resolver": {
