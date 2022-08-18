@@ -6,6 +6,7 @@ config/production.js
 keycloak.json
 data
 *.pem
+build/
 
 # Logs
 logs

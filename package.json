@@ -6,7 +6,8 @@
     "start": "ts-node src/app.ts",
     "test": "jest --detectOpenHandles",
     "deploy": "pm2 deploy ecosystem.config.js dev",
-    "deploy-prod": "pm2 deploy ecosystem.config.js production"
+    "deploy-prod": "pm2 deploy ecosystem.config.js production",
+    "build": "rimraf build && tsc"
   },
   "repository": {
     "type": "git",
@@ -67,6 +68,7 @@
     "eslint-plugin-promise": "^6.0.0",
     "fastify": "^4.0.0",
     "prettier": "^2.7.1",
+    "rimraf": "^3.0.2",
     "simple-node-logger": "^21.8.12",
     "socket.io": "^4.5.1",
     "socket.io-client": "^4.5.1",

@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: "DicomWeb-Websocket-Bridge",
-    script: ".",
+    script: "./build/src/app.js",
     watch: ".",
     watch_options: {
       followSymlinks: false
@@ -25,7 +25,7 @@ module.exports = {
       ref: "origin/main",
       repo: "git@github.com-bridge:wearemothership/dicomweb-websocket-bridge.git",
       path: "/root/dev/dicomweb-websocket-bridge",
-      "post-deploy": "npm install && pm2 reload ecosystem.config.js --env production --update-env"
+      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.js --env production --update-env"
     },
     production: {
       user: "root",
@@ -33,7 +33,7 @@ module.exports = {
       ref: "origin/main",
       repo: "git@github.com-bridge:wearemothership/dicomweb-websocket-bridge.git",
       path: "/root/dev/dicomweb-websocket-bridge",
-      "post-deploy": "npm install && pm2 reload ecosystem.config.js --env production --update-env"
+      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.js --env production --update-env"
     }
   }
 };
