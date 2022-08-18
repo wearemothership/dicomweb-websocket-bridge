@@ -63,6 +63,7 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
         if (resp instanceof Error) {
           reply.status(500).send(resp);
         }
+        resolve();
       });
       client.emit("wado-request", { query, uuid });
     }
