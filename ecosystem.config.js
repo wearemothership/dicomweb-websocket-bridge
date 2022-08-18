@@ -2,10 +2,6 @@ module.exports = {
   apps: [{
     name: "DicomWeb-Websocket-Bridge",
     script: "./build/src/app.js",
-    watch: ".",
-    watch_options: {
-      followSymlinks: false
-    },
     instances: 2,
     log_date_format: "YYYY-MM-DDTHH:mm:ssZ",
     wait_ready: true,
