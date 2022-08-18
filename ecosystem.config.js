@@ -6,7 +6,7 @@ require("dotenv-safe").config({ path: path.resolve("./.env") });
 module.exports = {
   apps: [{
     name: "DicomWeb-Websocket-Bridge",
-    script: "./build/src/app.js",
+    script: "./build/app.js",
     instances: 2,
     log_date_format: "YYYY-MM-DDTHH:mm:ssZ",
     wait_ready: true,

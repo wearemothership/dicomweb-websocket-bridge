@@ -11,8 +11,6 @@ export const requireProcessEnv = (name: string) => {
   return process.env[name];
 };
 
-console.log(requireProcessEnv("SECURE"), typeof requireProcessEnv("SECURE"), requireProcessEnv("SECURE") === "true");
-
 export const env = process.env.NODE_ENV ?? "development";
 export const root = path.join(__dirname, "..");
 export const webserverPort = process.env.WEBSERVER_PORT
