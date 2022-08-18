@@ -1,4 +1,3 @@
-import config from "config";
 import { Server } from "socket.io";
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
@@ -6,8 +5,10 @@ import type { Socket } from "socket.io";
 import httpsServer from "https";
 import httpServer from "http";
 import { readFileSync } from "fs";
-import knownOrigins from "../config/knownOrigins";
 import utils from "./utils";
+import {
+  websocketPort, secure, withCors, certKeyPath, certPath, certChainPath, certRevPath, knownOrigins
+} from "./config";
 
 const clientsPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
@@ -15,18 +16,15 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     const connectedClients: Record<string, Socket> = {};
     fastify.decorate("connectedClients", connectedClients);
 
-    const wsPort = config.get("websocketPort") as number;
-    const secure = config.get("secure") === "true";
-    const withCors = config.get("withCors") === "true";
     let webServer;
 
     if (secure) {
       logger.info("Starting secure server");
       webServer = httpsServer.createServer({
-        key: readFileSync(config.get("certificateKeyPath"), "utf8"),
-        cert: readFileSync(config.get("certificatePath"), "utf8"),
-        ca: [readFileSync(config.get("certificateChainPath"), "utf8")],
-        crl: [readFileSync(config.get("certificateRevocationList"), "utf8")],
+        key: readFileSync(certKeyPath, "utf8"),
+        cert: readFileSync(certPath, "utf8"),
+        ca: [readFileSync(certChainPath, "utf8")],
+        crl: [readFileSync(certRevPath, "utf8")],
         requestCert: true,
         rejectUnauthorized: true
       });
@@ -46,8 +44,8 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     } : undefined;
 
     const io = new Server(webServer, ioOptions);
-    webServer.listen(wsPort);
-    logger.info(`websocket-server listening on port: ${wsPort}`);
+    webServer.listen(websocketPort);
+    logger.info(`websocket-server listening on port: ${websocketPort}`);
 
     // incoming websocket connections are registered here
     io.on("connection", (socket) => {

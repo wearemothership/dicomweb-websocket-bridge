@@ -1,5 +1,4 @@
 import path from "path";
-import config from "config";
 import jsonwebtoken from "jsonwebtoken";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -11,12 +10,14 @@ import clientsPlugin from "./clientsPlugin";
 import emittersPlugin from "./emitters";
 import utils from "./utils";
 import routes from "./routes";
+import {
+  websocketToken, webserverPort, pacsSecret, pacsIssuer
+} from "./config";
 
 const initServer = async () => {
   const logger = utils.getLogger();
   try {
-    const defaultToken = config.get("websocketToken") as string;
-    const httpPort = config.get("webserverPort") as number;
+    const defaultToken = websocketToken;
     const fastify = Fastify({ logger: false, bodyLimit: 20971520 });
 
     await fastify.register(clientsPlugin);
@@ -34,17 +35,19 @@ const initServer = async () => {
       request.multipart = payload;
     });
 
-    fastify.decorateRequest("websocketToken", "");
+    fastify.decorateRequest("websocketToken", websocketToken);
 
     fastify.addHook("onRequest", async (request) => {
       const { headers } = request;
       const token = headers.authorization?.replace(/bearer /ig, "");
       if (token) {
         try {
-          const secret = config.get("jwtPacsSecret") as string;
-          const issuer = config.get("jwtPacsIssuer") as string;
-          const { websocketToken } = jsonwebtoken.verify(token, secret, { issuer });
-          request.websocketToken = websocketToken || defaultToken;
+          const { websocketToken: wst } = jsonwebtoken.verify(
+            token,
+            pacsSecret,
+            { issuer: pacsIssuer }
+          );
+          request.websocketToken = wst || defaultToken;
         }
         catch (e) {
           logger.warn("[onRequest] Using default token", e);
@@ -58,8 +61,8 @@ const initServer = async () => {
     });
 
     await fastify.register(routes, { prefix: "/viewer" });
-    await fastify.listen({ port: httpPort, host: "0.0.0.0" });
-    logger.info(`web-server listening on port: ${httpPort}`);
+    await fastify.listen({ port: webserverPort, host: "0.0.0.0" });
+    logger.info(`web-server listening on port: ${webserverPort}`);
     return fastify;
   }
   catch (e) {

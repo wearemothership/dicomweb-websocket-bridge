@@ -1,5 +1,4 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import config from "config";
 import { v4 as uuid4 } from "uuid";
 import jwt from "jsonwebtoken";
 import socketIOClient from "socket.io-client";
@@ -7,36 +6,28 @@ import fs from "fs";
 import path from "path";
 import SocketIOStream from "@wearemothership/socket.io-stream";
 import initFastify from "./initFastify";
+import { websocketToken, pacsSecret, pacsIssuer } from "./config";
 
 jest.mock("./utils", () => ({
   getLogger: () => console
 }));
 
-jest.mock("config", () => {
-  const insecureConfig = {
-    logDir: "./logs",
-    webserverPort: 5001,
-    websocketPort: 6001,
-    websocketToken: "WEBSOCKET_TOKEN",
-    jwtPacsSecret: "TEST_SECRET",
-    jwtPacsIssuer: "TEST_ISSUER",
-    secure: "false",
-    withCors: "false"
-  };
-
-  return {
-    get: (val) => insecureConfig[val]
-  };
-});
+jest.mock("./config", () => ({
+  logDir: "./logs",
+  webserverPort: 5001,
+  websocketPort: 6001,
+  websocketToken: "WEBSOCKET_TOKEN",
+  pacsSecret: "TEST_SECRET",
+  pacsIssuer: "TEST_ISSUER",
+  secure: false,
+  withCors: false
+}));
 
 jest.mock("@wearemothership/socket.io-stream", () => jest.fn());
 
-const token = config.get("websocketToken") as string;
-const secret = config.get("jwtPacsSecret") as string;
-const issuer = config.get("jwtPacsIssuer") as string;
-const validToken = jwt.sign({ websocketToken: token, id: uuid4() }, secret, { issuer });
-const invalidIssuerToken = jwt.sign({ websocketToken: token, id: uuid4() }, secret, { issuer: "BAD_ISSUER" });
-const invalidSecretToken = jwt.sign({ websocketToken: token, id: uuid4() }, "BAD_SECRET", { issuer });
+const validToken = jwt.sign({ websocketToken, id: uuid4() }, pacsSecret, { issuer: pacsIssuer });
+const invalidIssuerToken = jwt.sign({ websocketToken, id: uuid4() }, pacsSecret, { issuer: "BAD_ISSUER" });
+const invalidSecretToken = jwt.sign({ websocketToken, id: uuid4() }, "BAD_SECRET", { issuer: pacsIssuer });
 
 describe("Dicom Websocket Bridge", () => {
   let app;
@@ -65,15 +56,15 @@ describe("Dicom Websocket Bridge", () => {
       {
         reconnection: false,
         auth: {
-          token
+          token: websocketToken
         }
       }
     );
 
     socket.on("connect", () => {
       expect(socket.connected).toBeTruthy();
-      expect(app.connectedClients[token].id).toEqual(socket.id);
-      expect(app.connectedClients[token].handshake.auth.token).toEqual(token);
+      expect(app.connectedClients[websocketToken].id).toEqual(socket.id);
+      expect(app.connectedClients[websocketToken].handshake.auth.token).toEqual(websocketToken);
       socket.close();
       resolve();
     });
@@ -122,7 +113,7 @@ describe("Dicom Websocket Bridge", () => {
     beforeEach(() => new Promise<void>((resolve, reject) => {
       socket = socketIOClient(
         "http://0.0.0.0:6001",
-        { reconnection: false, auth: { token } }
+        { reconnection: false, auth: { token: websocketToken } }
       );
 
       socket.on("connect", () => {
@@ -146,7 +137,7 @@ describe("Dicom Websocket Bridge", () => {
     ];
 
     test.each(qidoRequests)("GET %s", async (url) => {
-      const client = app.connectedClients[token];
+      const client = app.connectedClients[websocketToken];
       client.once = jest.fn((uuid, fn) => {
         onceFunc[uuid] = fn;
       });
@@ -179,7 +170,7 @@ describe("Dicom Websocket Bridge", () => {
             onceFunc[uuid] = fn;
           }
         }));
-        const client = app.connectedClients[token];
+        const client = app.connectedClients[websocketToken];
         const stream = fs.createReadStream(path.resolve("test/testDICOM.dcm"));
         client.emit = jest.fn((type, { uuid }) => {
           onceFunc?.[uuid]?.(stream, { contentType: "application/dicom" });
@@ -204,7 +195,7 @@ describe("Dicom Websocket Bridge", () => {
             onceFunc[uuid] = fn;
           }
         }));
-        const client = app.connectedClients[token];
+        const client = app.connectedClients[websocketToken];
         const stream = fs.createReadStream(path.resolve("test/test.jpg"));
         client.emit = jest.fn((type, { uuid }) => {
           onceFunc?.[uuid]?.(stream, { contentType: "image/jpeg" });
@@ -229,7 +220,7 @@ describe("Dicom Websocket Bridge", () => {
             onceFunc[uuid] = fn;
           }
         }));
-        const client = app.connectedClients[token];
+        const client = app.connectedClients[websocketToken];
         const stream = fs.createReadStream(path.resolve("test/testDICOM.dcm"));
         client.emit = jest.fn((type, { uuid }) => {
           onceFunc?.[uuid]?.(stream, { contentType: "application/octet-stream" });
@@ -254,7 +245,7 @@ describe("Dicom Websocket Bridge", () => {
             onceFunc[uuid] = fn;
           }
         }));
-        const client = app.connectedClients[token];
+        const client = app.connectedClients[websocketToken];
         const stream = fs.createReadStream(path.resolve("test/test.jpg"));
         client.emit = jest.fn((type, { uuid }) => {
           onceFunc?.[uuid]?.(stream, { contentType: "image/jpeg" });
@@ -274,7 +265,7 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       test("GET /metadata", async () => {
-        const client = app.connectedClients[token];
+        const client = app.connectedClients[websocketToken];
         client.once = jest.fn((uuid, fn) => {
           onceFunc[uuid] = fn;
         });
@@ -313,7 +304,7 @@ describe("Dicom Websocket Bridge", () => {
       SocketIOStream.createStream = jest.fn().mockImplementation(() => (
         jest.requireActual("@wearemothership/socket.io-stream").createStream()
       ));
-      const client = app.connectedClients[token];
+      const client = app.connectedClients[websocketToken];
       client.once = jest.fn((uuid, fn) => {
         onceFunc[uuid] = fn;
       });
@@ -346,7 +337,7 @@ describe("Dicom Websocket Bridge", () => {
     ];
 
     test.each(wadoQueries)("GET /viewer/wadouri $id", async (props) => {
-      const client = app.connectedClients[token];
+      const client = app.connectedClients[websocketToken];
       client.once = jest.fn((uuid, fn) => {
         onceFunc[uuid] = fn;
       });

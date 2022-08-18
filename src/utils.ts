@@ -1,9 +1,8 @@
-import config from "config";
 import SimpleLogger from "simple-node-logger";
 import fs from "fs/promises";
+import { logDir } from "./config";
 
 // make sure default directories exist
-const logDir = config.get("logDir") as string;
 fs.mkdir(logDir, { recursive: true });
 
 // create a rolling file logger based on date/time that fires process events

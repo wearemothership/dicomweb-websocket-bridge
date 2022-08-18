@@ -7,8 +7,6 @@ keycloak.json
 data
 *.pem
 build/
-config/default.js
-config/knownOrigins.ts
 
 # Logs
 logs
