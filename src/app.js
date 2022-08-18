@@ -1,11 +1,12 @@
 const config = require("config");
 const { v4: uuidv4 } = require('uuid');
+const socketIOStream = require("@wearemothership/socket.io-stream");
 
 const httpPort = config.get("webserverPort");
 const wsPort = config.get("websocketPort");
 const io = require("socket.io")(wsPort);
 const path = require("path");
-const fastify = require("fastify")({ logger: false });
+const fastify = require("fastify")({ logger: false, bodyLimit: 20971520 }); // 20MB
 const utils = require("./utils");
 
 let connectedClient = null;
@@ -24,21 +25,57 @@ fastify.register(require("@fastify/compress"), { global: true });
 
 const logger = utils.getLogger();
 
-const emitToWsClient = (reply, level, query) => {
+const emitToWsClient = (reply, level, query) => new Promise((resolve) => {
   if (!connectedClient) {
     const msg = 'no ws client connected, cannot emit';
     logger.error(msg);
     reply.send(msg);
+    resolve();
   } else {
     const uuid = uuidv4();
-
     connectedClient.once(uuid, (data) => {
+      if (data instanceof Error) {
+        reply.status(500)
+      }
       reply.send(data);
+      resolve()
     });
   
-    connectedClient.emit('qido-request', { level, query, uuid });
+    connectedClient.emit("qido-request", { level, query, uuid });
   }
-}
+})
+
+const emitToWadoWsClient = (reply, query) => new Promise((resolve) => {
+  if (!connectedClient) {
+    const msg = 'no ws client connected, cannot emit';
+    logger.error(msg);
+    reply.send(msg);
+    resolve()
+  } else {
+    const uuid = uuidv4();
+    socketIOStream(connectedClient).on(uuid, (stream, headers) => {
+      const { contentType } = headers;
+      reply.status(200)
+      reply.header("content-type", contentType)
+      const bufferData = []
+      stream.on("data", (data) => {
+        bufferData.push(data)
+      })
+      stream.on("end", () => {
+        const b = Buffer.concat(bufferData)
+        reply.send(b)
+        resolve()
+      })
+    });
+    connectedClient.on(uuid, (resp) => {
+      if (resp instanceof Error) {
+        reply.status(500).send(resp)
+        resolve()
+      }
+    })
+    connectedClient.emit("wado-request", { query, uuid });
+  }
+})
 
 // log exceptions
 process.on("uncaughtException", async (err) => {
@@ -70,11 +107,10 @@ io.on("connection", (socket) => {
   logger.info(`websocket client connected from origin: ${origin}`);
   connectedClient = socket;
 
-  socket.on("disconnect", () => {
-    logger.info(`websocket client disconnected, origin: ${origin}`);
+  socket.on("disconnect", (reason) => {
+    logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
     connectedClient = null;
   });
-
 });
 
 //------------------------------------------------------------------
@@ -95,14 +131,43 @@ io.use((socket, next) => {
 
 //------------------------------------------------------------------
 
-fastify.get('/viewer/rs/studies', (req, reply) => {
-  emitToWsClient(reply, 'STUDY', req.query);
+fastify.get('/viewer/rs/studies', (req, reply) => (
+  emitToWsClient(reply, 'STUDY', req.query)
+));
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  return emitToWadoWsClient(reply, req.query);
 });
 
 //------------------------------------------------------------------
 
-fastify.get('/rs/studies', async (req, reply) => {
-  emitToWsClient(reply, 'STUDY', req.query);
+fastify.get('/viewer/rs/studies/:studyInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.dataFormat = "thumbnail";
+  return emitToWadoWsClient(reply, req.query);
 });
 
 //------------------------------------------------------------------
@@ -110,7 +175,7 @@ fastify.get('/rs/studies', async (req, reply) => {
 fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  emitToWsClient(reply, 'SERIES', query);
+  return emitToWsClient(reply, 'STUDY', query);
 });
 
 //------------------------------------------------------------------
@@ -118,7 +183,55 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/metadata', async (req, reply) 
 fastify.get('/viewer/rs/studies/:studyInstanceUid/series', async (req, reply) => {
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
-  emitToWsClient(reply, 'SERIES', query);
+  return emitToWsClient(reply, 'SERIES', query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "pixeldata";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.dataFormat = "thumbnail";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get("/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/metadata", async (req, reply) => {
+  const { query } = req;
+  query.StudyInstanceUID = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  return emitToWsClient(reply, "SERIES", query, req.websocketToken);
 });
 
 //------------------------------------------------------------------
@@ -127,7 +240,60 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/inst
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  emitToWsClient(reply, 'IMAGE', query);
+  return emitToWsClient(reply, 'IMAGE', query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/rendered', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "rendered";
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/pixeldata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "pixeldata"
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/thumbnail', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  query.dataFormat = "thumbnail"
+  return emitToWadoWsClient(reply, req.query);
+});
+
+//------------------------------------------------------------------
+
+fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/instances/:sopInstanceUid/metadata', async (req, reply) => {
+  const { query } = req;
+  query.studyInstanceUid = req.params.studyInstanceUid;
+  query.seriesInstanceUid = req.params.seriesInstanceUid;
+  query.sopInstanceUid = req.params.sopInstanceUid;
+  return emitToWsClient(reply, 'IMAGE', query);
 });
 
 //------------------------------------------------------------------
@@ -136,27 +302,36 @@ fastify.get('/viewer/rs/studies/:studyInstanceUid/series/:seriesInstanceUid/meta
   const { query } = req;
   query.StudyInstanceUID = req.params.studyInstanceUid;
   query.SeriesInstanceUID = req.params.seriesInstanceUid;
-  emitToWsClient(reply, 'IMAGE', query);
+  return emitToWsClient(reply, 'IMAGE', query);
 });
 
 //------------------------------------------------------------------
 
-fastify.get('/viewer/wadouri', async (req, reply) => {
+fastify.get('/viewer/wadouri', (req, reply) => new Promise((resolve) => {
   const uuid = uuidv4();
 
-  connectedClient.once(uuid, (data) => {
-    reply.header('Content-Type', 'application/dicom');
-    reply.send(data);
-  });
-  const { query } = req;
-  connectedClient.emit('wadouri-request', { query, uuid });
-});
+  if (connectedClient) {
+    connectedClient.once(uuid, (data) => {
+      reply.header('Content-Type', data.contentType);
+      reply.send(data.buffer);
+      resolve();
+    });
+
+    const { query } = req;
+    connectedClient.emit('wadouri-request', { query, uuid });
+  }
+  else {
+    const msg = 'no ws client connected, cannot emit';
+    logger.error(msg);
+    reply.send(msg);
+  }
+}));
 
 //------------------------------------------------------------------
 
 logger.info("starting...");
 
-fastify.listen(httpPort, '0.0.0.0', async (err, address) => {
+fastify.listen({ port: httpPort, host: '0.0.0.0' }, async (err, address) => {
   if (err) {
     await logger.error(err, address);
     process.exit(1);
