@@ -1,6 +1,7 @@
 {
   "name": "dicomweb-websocket-bridge",
   "version": "1.0.1",
+  "main": "./build/src/app.js",
   "description": "Redirect dicomweb traffic over websockets to a local PACS server",
   "scripts": {
     "start": "ts-node src/app.ts",
