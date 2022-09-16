@@ -1,5 +1,4 @@
 import { FastifyInstance } from "fastify";
-import { v4 as uuidv4 } from "uuid";
 import utils from "./utils";
 
 interface QueryParams {
@@ -9,7 +8,7 @@ interface QueryParams {
 const routes = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
   const {
-    connectedClients, emitToWsClient, emitToWadoWsClient, emitToStowRsClient
+    io, emitToWsClient, emitToWadoWsClient, emitToStowRsClient
   } = fastify;
   //------------------------------------------------------------------
 
@@ -239,25 +238,19 @@ const routes = async (fastify: FastifyInstance) => {
 
   //------------------------------------------------------------------
 
-  fastify.get("/wadouri", (req, reply): Promise<void> => new Promise((resolve) => {
-    const uuid = uuidv4();
-
-    const client = connectedClients[req.websocketToken];
-    if (!client || client.handshake.auth.token !== req.websocketToken) {
-      const msg = "no ws client connected, cannot emit";
-      logger.error(msg);
-      reply.send(msg);
-    }
-    else {
-      client.once(uuid, (data) => {
-        reply.header("Content-Type", data.contentType);
-        reply.send(data.buffer);
+  fastify.get("/wadouri", ({ query, websocketToken }, reply): Promise<void> => new Promise((resolve) => {
+    logger.info("WADO-URI Request");
+    io.in(websocketToken).timeout(1000).emit("wadouri-request", { query }, (err, data) => {
+      if (err) {
+        reply.status(500).send(err);
+        logger.error(err);
         resolve();
-      });
-
-      const { query } = req;
-      client.emit("wadouri-request", { query, uuid });
-    }
+        return;
+      }
+      reply.header("Content-Type", data.contentType);
+      reply.send(data.buffer);
+      resolve();
+    });
   }));
 };
 

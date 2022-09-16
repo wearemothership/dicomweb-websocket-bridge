@@ -1,4 +1,4 @@
-import type { Socket, Server } from "socket.io";
+import type { Server } from "socket.io";
 import type { FastifyReply } from "fastify";
 import utils from "./utils";
 import initServer from "./initFastify";
@@ -15,8 +15,7 @@ declare module "fastify" {
     emitToStowRsClient: (
       reply: FastifyReply, body: Buffer, token: string, type: string
     ) => void,
-    connectedClients: Record<string, Socket>,
-    io: Server
+    io: Server,
   }
   interface FastifyRequest {
     websocketToken: string;

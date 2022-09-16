@@ -1,21 +1,20 @@
-import { Server } from "socket.io";
+import { Server, ServerOptions } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createClient } from "redis";
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import type { Socket } from "socket.io";
 import httpsServer from "https";
 import httpServer from "http";
 import { readFileSync } from "fs";
 import utils from "./utils";
 import {
-  websocketPort, secure, withCors, certKeyPath, certPath, certChainPath, certRevPath, knownOrigins
+  websocketPort, secure, withCors, certKeyPath,
+  certPath, certChainPath, certRevPath, knownOrigins
 } from "./config";
 
 const clientsPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
   try {
-    const connectedClients: Record<string, Socket> = {};
-    fastify.decorate("connectedClients", connectedClients);
-
     let webServer;
 
     if (secure) {
@@ -34,30 +33,39 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       webServer = httpServer.createServer();
     }
 
-    const ioOptions = withCors ? {
+    const ioOptions: Partial<ServerOptions> | undefined = withCors ? {
       cors: {
         origin: knownOrigins,
         methods: ["GET", "OPTIONS", "POST"],
         allowedHeaders: ["Content-Type", "Authorization"],
         exposedHeaders: ["Content-Type", "Authorization"]
-      }
+      },
+      transports: ["websocket"],
+      maxHttpBufferSize: 2e8 // 20MB
     } : undefined;
 
     const io = new Server(webServer, ioOptions);
-    webServer.listen(websocketPort);
+    const pubClient = createClient({ url: "redis://localhost:6379" });
+    const subClient = pubClient.duplicate();
+    pubClient.on("error", (err) => logger.error("[pubClient] Redis Client Error", err));
+    subClient.on("error", (err) => logger.error("[subClient] Redis Client Error", err));
+    await Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+      io.adapter(createAdapter(pubClient, subClient));
+      webServer.listen(websocketPort);
+    });
     logger.info(`websocket-server listening on port: ${websocketPort}`);
 
     // incoming websocket connections are registered here
-    io.on("connection", (socket) => {
+    io.on("connection", async (socket) => {
       const origin = socket.conn.remoteAddress;
       logger.info(`websocket client connected from origin: ${origin}`);
       const { token } = socket.handshake.auth;
       logger.info("Added socket to clients", token);
-      connectedClients[token] = socket;
+      socket.join(token);
 
       socket.on("disconnect", (reason) => {
         logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
-        delete connectedClients[token];
+        socket.join(token);
       });
     });
 
