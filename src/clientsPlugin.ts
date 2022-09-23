@@ -41,14 +41,21 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
         exposedHeaders: ["Content-Type", "Authorization"]
       },
       transports: ["websocket"],
-      maxHttpBufferSize: 2e8 // 20MB
+      maxHttpBufferSize: 2e8 // 200MB
     } : undefined;
 
     const io = new Server(webServer, ioOptions);
     const pubClient = createClient({ url: "redis://localhost:6379" });
     const subClient = pubClient.duplicate();
     pubClient.on("error", (err) => logger.error("[pubClient] Redis Client Error", err));
+    pubClient.on("connect", () => logger.info("[pubClient] Connect"));
+    pubClient.on("reconnecting", () => logger.info("[pubClient] Reconnecting"));
+    pubClient.on("ready", () => logger.info("[pubClient] Ready"));
     subClient.on("error", (err) => logger.error("[subClient] Redis Client Error", err));
+    subClient.on("connect", () => logger.info("[subClient] Connect"));
+    subClient.on("reconnecting", () => logger.info("[subClient] Reconnecting"));
+    subClient.on("ready", () => logger.info("[subClient] Ready"));
+    subClient.on("disconnect", (reason) => logger.info(`[subClient] Disconnect ${reason}`));
     await Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
       io.adapter(createAdapter(pubClient, subClient));
       webServer.listen(websocketPort);
@@ -62,6 +69,8 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       const { token } = socket.handshake.auth;
       logger.info("Added socket to clients", token);
       socket.join(token);
+
+      socket.on("error", (err) => logger.error(`Socket Error ${err.message}`));
 
       socket.on("disconnect", (reason) => {
         logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
