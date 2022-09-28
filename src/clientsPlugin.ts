@@ -1,11 +1,12 @@
 import { Server, ServerOptions } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
-import { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import httpsServer from "https";
 import httpServer from "http";
 import { readFileSync } from "fs";
+import socketIOStream from "@wearemothership/socket.io-stream";
 import utils from "./utils";
 import {
   websocketPort, secure, withCors, certKeyPath,
@@ -57,7 +58,14 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     subClient.on("ready", () => logger.info("[subClient] Ready"));
     subClient.on("disconnect", (reason) => logger.info(`[subClient] Disconnect ${reason}`));
     await Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-      io.adapter(createAdapter(pubClient, subClient));
+      io.adapter(createAdapter(
+        pubClient,
+        subClient,
+        {
+          requestsTimeout: 10000,
+          publishOnSpecificResponseChannel: true
+        }
+      ));
       webServer.listen(websocketPort);
     });
     logger.info(`websocket-server listening on port: ${websocketPort}`);
@@ -68,6 +76,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       logger.info(`websocket client connected from origin: ${origin}`);
       const { token } = socket.handshake.auth;
       logger.info("Added socket to clients", token);
+      socketIOStream(socket);
       socket.join(token);
 
       socket.on("error", (err) => logger.error(`Socket Error ${err.message}`));

@@ -3,6 +3,17 @@ import type { FastifyReply } from "fastify";
 import utils from "./utils";
 import initServer from "./initFastify";
 
+export interface AddToQueue {
+  socketId: string,
+  type: "wado-request" | "qido-request" | "stow-request",
+  callback: (err: null | Error, data?: Buffer | string, headers?: Record<string, string>) => void,
+  level?: string,
+  query?: Record<string, string>,
+  body?: Buffer,
+  headers?: Record<string, string>,
+  oldUuid?: string
+}
+
 /* eslint-disable no-unused-vars */
 declare module "fastify" {
   interface FastifyInstance {
@@ -16,6 +27,7 @@ declare module "fastify" {
       reply: FastifyReply, body: Buffer, token: string, type: string
     ) => void,
     io: Server,
+    addToQueue: (args: AddToQueue) => void
   }
   interface FastifyRequest {
     websocketToken: string;
