@@ -383,7 +383,7 @@ describe("Dicom Websocket Bridge", () => {
       app.io.in = jest.fn(() => ({
         timeout: jest.fn(() => ({
           emit: jest.fn((_type, _body, _headers, callback) => {
-            callback(defaultResponse);
+            callback(null, defaultResponse);
           })
         }))
       }));
@@ -398,7 +398,6 @@ describe("Dicom Websocket Bridge", () => {
           accepts: "application/json"
         }
       });
-
       expect(statusCode).toEqual(200);
       expect(body).toStrictEqual(defaultResponse);
     });
