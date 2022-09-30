@@ -136,6 +136,7 @@ describe("Dicom Websocket Bridge", () => {
   // });
 
   test("onRequest (invalid issuer token)", () => new Promise<void>((resolve, reject) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const socket = socketIOClient(
       "http://0.0.0.0:6001",
       {
@@ -156,17 +157,21 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       expect(statusCode).toEqual(401);
+      expect(errorSpy).toHaveBeenCalledWith("Token not valid");
       socket.close();
+      errorSpy.mockRestore();
       resolve();
     });
 
     socket.on("error", (e) => {
       socket.close();
+      errorSpy.mockRestore();
       reject(e);
     });
   }));
 
   test("onRequest (invalid secret token)", () => new Promise<void>((resolve, reject) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const socket = socketIOClient(
       "http://0.0.0.0:6001",
       {
@@ -187,12 +192,15 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       expect(statusCode).toEqual(401);
+      expect(errorSpy).toHaveBeenCalledWith("Token not valid");
       socket.close();
+      errorSpy.mockRestore();
       resolve();
     });
 
     socket.on("error", (e) => {
       socket.close();
+      errorSpy.mockRestore();
       reject(e);
     });
   }));
