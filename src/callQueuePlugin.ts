@@ -59,7 +59,9 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     };
 
     const uuid = oldUuid ?? uuid4();
-    retryCount[uuid] = 0;
+    if (!retryCount[uuid]) {
+      retryCount[uuid] = 0;
+    }
     if (type === "wado-request") {
       io.in(socketId).timeout(10000).emit("wado-request", { query }, (err, response) => {
         if (err || !response) {
