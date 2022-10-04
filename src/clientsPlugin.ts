@@ -57,21 +57,20 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     subClient.on("reconnecting", () => logger.info("[subClient] Reconnecting"));
     subClient.on("ready", () => logger.info("[subClient] Ready"));
     subClient.on("disconnect", (reason) => logger.info(`[subClient] Disconnect ${reason}`));
-    await Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-      io.adapter(createAdapter(
-        pubClient,
-        subClient,
-        {
-          requestsTimeout: 10000,
-          publishOnSpecificResponseChannel: true
-        }
-      ));
-      webServer.listen(websocketPort);
-    });
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(
+      pubClient,
+      subClient,
+      {
+        requestsTimeout: 10000,
+        publishOnSpecificResponseChannel: true
+      }
+    ));
+    webServer.listen(websocketPort);
     logger.info(`websocket-server listening on port: ${websocketPort}`);
 
     // incoming websocket connections are registered here
-    io.on("connection", async (socket) => {
+    io.on("connection", (socket) => {
       const origin = socket.conn.remoteAddress;
       logger.info(`websocket client connected from origin: ${origin}`);
       const { token } = socket.handshake.auth;
