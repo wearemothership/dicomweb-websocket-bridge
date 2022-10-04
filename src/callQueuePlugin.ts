@@ -138,7 +138,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             processQueueForSocket(socketId);
           }
         }
-        const { success, data, message } = response;
+        const { success, data } = response;
         if (!success) {
           try {
             retryCall(uuid, `[${type.toUpperCase()}] call failed, retrying`, {
@@ -153,7 +153,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             processQueueForSocket(socketId);
           }
         }
-        callback(null, data ?? message);
+        callback(null, data ?? response);
         delete retryCount[uuid];
         callCount[socketId] -= 1;
         processQueueForSocket(socketId);
