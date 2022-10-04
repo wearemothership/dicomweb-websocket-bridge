@@ -13,18 +13,8 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
   const callCount = {};
   const retryCount: Record<string, number> = {};
   const logger = utils.getLogger();
-  // const findSocketById = (socketId: string) => {
-  //   let socket;
-  //   io.sockets.sockets.forEach((s) => {
-  //     const rooms = Array.from(s.rooms.values());
-  //     if (rooms.includes(socketId)) {
-  //       socket = s;
-  //     }
-  //   });
-  //   return socket;
-  // };
 
-  const doCall = async (queueArgs?: AddToQueue | string) => {
+  const doCall = (queueArgs?: AddToQueue | string) => {
     const processQueueForSocket = (sid: string) => {
       const socketQueue = callQueue[sid] ?? [];
       if (socketQueue.length > 0 && (!callCount[sid] || callCount[sid] + 1 <= MAX_CALLS)) {
@@ -66,7 +56,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       io.in(socketId).timeout(10000).emit("wado-request", { query }, (err, response) => {
         if (err || !response) {
           try {
-            retryCall(uuid, "[WADO-RS] Empty Buffer", {
+            retryCall(uuid, "[WADO-RS] No Response", {
               socketId, type, callback, query
             });
             return;
@@ -80,9 +70,23 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
           }
         }
 
-        const { buffer, headers } = Array.isArray(response)
+        const { buffer, headers, success } = Array.isArray(response)
           ? response[0] ?? response[1]
           : response;
+        if (!success) {
+          try {
+            retryCall(uuid, "[WADO-RS] Failed", {
+              socketId, type, callback, query
+            });
+            return;
+          }
+          catch (e) {
+            callback(e as Error);
+            delete retryCount[uuid];
+            callCount[socketId] -= 1;
+            processQueueForSocket(socketId);
+          }
+        }
         if (!buffer || buffer.length === 0) {
           try {
             retryCall(uuid, "[WADO-RS] Empty Buffer", {
@@ -134,7 +138,22 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             processQueueForSocket(socketId);
           }
         }
-        callback(null, response);
+        const { success, data, message } = response;
+        if (!success) {
+          try {
+            retryCall(uuid, `[${type.toUpperCase()}] call failed, retrying`, {
+              socketId, type, callback, level, query, body, headers: requestHeaders
+            });
+            return;
+          }
+          catch (e) {
+            callback(e as Error);
+            delete retryCount[uuid];
+            callCount[socketId] -= 1;
+            processQueueForSocket(socketId);
+          }
+        }
+        callback(null, data ?? message);
         delete retryCount[uuid];
         callCount[socketId] -= 1;
         processQueueForSocket(socketId);
