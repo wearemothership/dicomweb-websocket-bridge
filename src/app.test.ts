@@ -238,7 +238,7 @@ describe("Dicom Websocket Bridge", () => {
       app.io.in = jest.fn(() => ({
         timeout: jest.fn(() => ({
           emit: jest.fn((_type, _args, callback) => {
-            callback(null, [defaultResponse]);
+            callback(null, [{ success: true, data: defaultResponse }]);
           })
         }))
       }));
@@ -266,7 +266,7 @@ describe("Dicom Websocket Bridge", () => {
         app.io.in = jest.fn(() => ({
           timeout: jest.fn(() => ({
             emit: jest.fn((_type, _args, callback) => {
-              callback(null, [{ buffer, headers: { contentType: "application/dicom" } }]);
+              callback(null, [{ success: true, buffer, headers: { contentType: "application/dicom" } }]);
             })
           }))
         }));
@@ -289,7 +289,7 @@ describe("Dicom Websocket Bridge", () => {
         app.io.in = jest.fn(() => ({
           timeout: jest.fn(() => ({
             emit: jest.fn((_type, _args, callback) => {
-              callback(null, [{ buffer, headers: { contentType: "image/jpeg" } }]);
+              callback(null, [{ success: true, buffer, headers: { contentType: "image/jpeg" } }]);
             })
           }))
         }));
@@ -312,7 +312,7 @@ describe("Dicom Websocket Bridge", () => {
         app.io.in = jest.fn(() => ({
           timeout: jest.fn(() => ({
             emit: jest.fn((_type, _args, callback) => {
-              callback(null, [{ buffer, headers: { contentType: "application/octet-stream" } }]);
+              callback(null, [{ success: true, buffer, headers: { contentType: "application/octet-stream" } }]);
             })
           }))
         }));
@@ -335,7 +335,7 @@ describe("Dicom Websocket Bridge", () => {
         app.io.in = jest.fn(() => ({
           timeout: jest.fn(() => ({
             emit: jest.fn((_type, _args, callback) => {
-              callback(null, [{ buffer, headers: { contentType: "image/jpeg" } }]);
+              callback(null, [{ success: true, buffer, headers: { contentType: "image/jpeg" } }]);
             })
           }))
         }));
@@ -357,7 +357,7 @@ describe("Dicom Websocket Bridge", () => {
         app.io.in = jest.fn(() => ({
           timeout: jest.fn(() => ({
             emit: jest.fn((_type, _args, callback) => {
-              callback(null, [defaultResponse]);
+              callback(null, [{ success: true, data: defaultResponse }]);
             })
           }))
         }));
@@ -391,7 +391,7 @@ describe("Dicom Websocket Bridge", () => {
       app.io.in = jest.fn(() => ({
         timeout: jest.fn(() => ({
           emit: jest.fn((_type, _body, _headers, callback) => {
-            callback(null, defaultResponse);
+            callback(null, { success: true, data: defaultResponse });
           })
         }))
       }));
