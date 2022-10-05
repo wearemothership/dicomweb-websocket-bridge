@@ -27,7 +27,9 @@
         }],
         "semi": ["error", "always"],
         "import/default": 0,
-        "comma-dangle": "off"
+        "comma-dangle": "off",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": "error"
       },
       "settings": {
         "import/resolver": {

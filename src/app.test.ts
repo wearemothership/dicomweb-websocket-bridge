@@ -4,9 +4,8 @@ import jwt from "jsonwebtoken";
 import socketIOClient from "socket.io-client";
 import fs from "fs";
 import path from "path";
-import SocketIOStream from "@wearemothership/socket.io-stream";
 import initFastify from "./initFastify";
-import { websocketToken, pacsSecret, pacsIssuer } from "./config";
+import { pacsSecret, pacsIssuer } from "./config";
 
 jest.mock("./utils", () => ({
   getLogger: () => console
@@ -16,28 +15,81 @@ jest.mock("./config", () => ({
   logDir: "./logs",
   webserverPort: 5001,
   websocketPort: 6001,
-  websocketToken: "WEBSOCKET_TOKEN",
+  websocketToken: "DEFAULT_TOKEN",
   pacsSecret: "TEST_SECRET",
   pacsIssuer: "TEST_ISSUER",
   secure: false,
   withCors: false
 }));
 
-jest.mock("@wearemothership/socket.io-stream", () => jest.fn());
+const data = {};
 
-const validToken = jwt.sign({ websocketToken, id: uuid4() }, pacsSecret, { issuer: pacsIssuer });
-const invalidIssuerToken = jwt.sign({ websocketToken, id: uuid4() }, pacsSecret, { issuer: "BAD_ISSUER" });
-const invalidSecretToken = jwt.sign({ websocketToken, id: uuid4() }, "BAD_SECRET", { issuer: pacsIssuer });
+const mockClient = ({
+  flushAll: jest.fn(() => {
+    Object.keys(data).forEach((key) => delete data[key]);
+    return Promise.resolve();
+  }),
+  get: jest.fn((key) => Promise.resolve(data[key])),
+  set: jest.fn((key, value) => {
+    data[key] = value;
+    return Promise.resolve();
+  }),
+  del: jest.fn((key) => {
+    delete data[key];
+    return Promise.resolve();
+  }),
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+  duplicate: jest.fn().mockReturnThis(),
+  psubscribe: jest.fn(),
+  subscribe: jest.fn(),
+  send_command: jest.fn(),
+  publish: jest.fn(),
+  on: jest.fn(),
+  quit: jest.fn()
+});
+
+jest.mock("redis", () => ({
+  createClient: jest.fn(() => mockClient)
+}));
+
+const token = "96e5accc-15d5-49f9-a547-8914e64942e3";
+const validToken = jwt.sign(
+  { websocketToken: token, id: uuid4() },
+  pacsSecret,
+  { issuer: pacsIssuer }
+);
+const invalidIssuerToken = jwt.sign({ websocketToken: token, id: uuid4() }, pacsSecret, { issuer: "BAD_ISSUER" });
+const invalidSecretToken = jwt.sign({ websocketToken: token, id: uuid4() }, "BAD_SECRET", { issuer: pacsIssuer });
 
 describe("Dicom Websocket Bridge", () => {
   let app;
+  let infoSpy;
+  let warnSpy;
   beforeEach(async () => {
+    infoSpy = jest.spyOn(console, "info").mockImplementation(() => undefined);
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     app = await initFastify();
+    const rooms = new Set();
+    rooms.add(token);
+    app.io.fetchSockets = jest.fn(() => ([{
+      rooms
+    }]));
+    app.io.in = jest.fn(() => ({
+      timeout: jest.fn(() => ({
+        emit: jest.fn((_type, _args, callback) => {
+          console.error("Default emit called");
+          callback();
+        })
+      }))
+    }));
   });
 
   afterEach(() => {
     app.io.close();
     app.close();
+    infoSpy.mockReset();
+    warnSpy.mockReset();
   });
 
   test("Insecure webserver starts", async () => {
@@ -56,15 +108,16 @@ describe("Dicom Websocket Bridge", () => {
       {
         reconnection: false,
         auth: {
-          token: websocketToken
+          token
         }
       }
     );
 
-    socket.on("connect", () => {
+    socket.on("connect", async () => {
       expect(socket.connected).toBeTruthy();
-      expect(app.connectedClients[websocketToken].id).toEqual(socket.id);
-      expect(app.connectedClients[websocketToken].handshake.auth.token).toEqual(websocketToken);
+      const serSocket = app.io.of("/").sockets.get(socket.id);
+      expect(serSocket.id).toEqual(socket.id);
+      expect(serSocket.handshake.auth.token).toEqual(token);
       socket.close();
       resolve();
     });
@@ -82,38 +135,83 @@ describe("Dicom Websocket Bridge", () => {
 
   // });
 
-  test("onRequest (invalid issuer token)", async () => {
-    const { statusCode } = await app.inject({
-      method: "GET",
-      url: "./viewer/rs/studies",
-      headers: {
-        authorization: `Bearer ${invalidIssuerToken}`
+  test("onRequest (invalid issuer token)", () => new Promise<void>((resolve, reject) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const socket = socketIOClient(
+      "http://0.0.0.0:6001",
+      {
+        reconnection: false,
+        auth: {
+          token
+        }
       }
+    );
+
+    socket.on("connect", async () => {
+      const { statusCode } = await app.inject({
+        method: "GET",
+        url: "./viewer/rs/studies",
+        headers: {
+          authorization: `Bearer ${invalidIssuerToken}`
+        }
+      });
+
+      expect(statusCode).toEqual(401);
+      expect(errorSpy).toHaveBeenCalledWith("Token not valid");
+      socket.close();
+      errorSpy.mockRestore();
+      resolve();
     });
 
-    expect(statusCode).toEqual(401);
-  });
+    socket.on("error", (e) => {
+      socket.close();
+      errorSpy.mockRestore();
+      reject(e);
+    });
+  }));
 
-  test("onRequest (invalid secret token)", async () => {
-    const { statusCode } = await app.inject({
-      method: "GET",
-      url: "./viewer/rs/studies",
-      headers: {
-        authorization: `Bearer ${invalidSecretToken}`
+  test("onRequest (invalid secret token)", () => new Promise<void>((resolve, reject) => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const socket = socketIOClient(
+      "http://0.0.0.0:6001",
+      {
+        reconnection: false,
+        auth: {
+          token
+        }
       }
+    );
+
+    socket.on("connect", async () => {
+      const { statusCode } = await app.inject({
+        method: "GET",
+        url: "./viewer/rs/studies",
+        headers: {
+          authorization: `Bearer ${invalidSecretToken}`
+        }
+      });
+
+      expect(statusCode).toEqual(401);
+      expect(errorSpy).toHaveBeenCalledWith("Token not valid");
+      socket.close();
+      errorSpy.mockRestore();
+      resolve();
     });
 
-    expect(statusCode).toEqual(401);
-  });
+    socket.on("error", (e) => {
+      socket.close();
+      errorSpy.mockRestore();
+      reject(e);
+    });
+  }));
 
   describe("Test Routes", () => {
     let socket;
     const defaultResponse = JSON.stringify({ test: "response" });
-    const onceFunc = {};
     beforeEach(() => new Promise<void>((resolve, reject) => {
       socket = socketIOClient(
         "http://0.0.0.0:6001",
-        { reconnection: false, auth: { token: websocketToken } }
+        { reconnection: false, auth: { token } }
       );
 
       socket.on("connect", () => {
@@ -137,14 +235,13 @@ describe("Dicom Websocket Bridge", () => {
     ];
 
     test.each(qidoRequests)("GET %s", async (url) => {
-      const client = app.connectedClients[websocketToken];
-      client.once = jest.fn((uuid, fn) => {
-        onceFunc[uuid] = fn;
-      });
-      client.emit = jest.fn((type, { uuid }) => {
-        onceFunc?.[uuid]?.(defaultResponse);
-        delete onceFunc[uuid];
-      });
+      app.io.in = jest.fn(() => ({
+        timeout: jest.fn(() => ({
+          emit: jest.fn((_type, _args, callback) => {
+            callback(null, [{ success: true, data: defaultResponse }]);
+          })
+        }))
+      }));
       const { statusCode, body } = await app.inject({
         method: "GET",
         url,
@@ -165,17 +262,15 @@ describe("Dicom Websocket Bridge", () => {
 
     describe.each(wadoRequests)("GET %s", (url) => {
       test("GET /", async () => {
-        SocketIOStream.mockImplementation(() => ({
-          on: (uuid, fn) => {
-            onceFunc[uuid] = fn;
-          }
+        const buffer = fs.readFileSync(path.resolve("test/testDICOM.dcm"));
+        app.io.in = jest.fn(() => ({
+          timeout: jest.fn(() => ({
+            emit: jest.fn((_type, _args, callback) => {
+              callback(null, [{ success: true, buffer, headers: { contentType: "application/dicom" } }]);
+            })
+          }))
         }));
-        const client = app.connectedClients[websocketToken];
-        const stream = fs.createReadStream(path.resolve("test/testDICOM.dcm"));
-        client.emit = jest.fn((type, { uuid }) => {
-          onceFunc?.[uuid]?.(stream, { contentType: "application/dicom" });
-          delete onceFunc[uuid];
-        });
+
         const { statusCode, body, headers } = await app.inject({
           method: "GET",
           url,
@@ -190,17 +285,15 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       test("GET /rendered", async () => {
-        SocketIOStream.mockImplementation(() => ({
-          on: (uuid, fn) => {
-            onceFunc[uuid] = fn;
-          }
+        const buffer = fs.readFileSync(path.resolve("test/test.jpg"));
+        app.io.in = jest.fn(() => ({
+          timeout: jest.fn(() => ({
+            emit: jest.fn((_type, _args, callback) => {
+              callback(null, [{ success: true, buffer, headers: { contentType: "image/jpeg" } }]);
+            })
+          }))
         }));
-        const client = app.connectedClients[websocketToken];
-        const stream = fs.createReadStream(path.resolve("test/test.jpg"));
-        client.emit = jest.fn((type, { uuid }) => {
-          onceFunc?.[uuid]?.(stream, { contentType: "image/jpeg" });
-          delete onceFunc[uuid];
-        });
+
         const { statusCode, body, headers } = await app.inject({
           method: "GET",
           url: `${url}/rendered`,
@@ -215,17 +308,15 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       test("GET /pixeldata", async () => {
-        SocketIOStream.mockImplementation(() => ({
-          on: (uuid, fn) => {
-            onceFunc[uuid] = fn;
-          }
+        const buffer = fs.readFileSync(path.resolve("test/testDICOM.dcm"));
+        app.io.in = jest.fn(() => ({
+          timeout: jest.fn(() => ({
+            emit: jest.fn((_type, _args, callback) => {
+              callback(null, [{ success: true, buffer, headers: { contentType: "application/octet-stream" } }]);
+            })
+          }))
         }));
-        const client = app.connectedClients[websocketToken];
-        const stream = fs.createReadStream(path.resolve("test/testDICOM.dcm"));
-        client.emit = jest.fn((type, { uuid }) => {
-          onceFunc?.[uuid]?.(stream, { contentType: "application/octet-stream" });
-          delete onceFunc[uuid];
-        });
+
         const { statusCode, body, headers } = await app.inject({
           method: "GET",
           url: `${url}/pixeldata`,
@@ -240,17 +331,15 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       test("GET /thumbnail", async () => {
-        SocketIOStream.mockImplementation(() => ({
-          on: (uuid, fn) => {
-            onceFunc[uuid] = fn;
-          }
+        const buffer = fs.readFileSync(path.resolve("test/test.jpg"));
+        app.io.in = jest.fn(() => ({
+          timeout: jest.fn(() => ({
+            emit: jest.fn((_type, _args, callback) => {
+              callback(null, [{ success: true, buffer, headers: { contentType: "image/jpeg" } }]);
+            })
+          }))
         }));
-        const client = app.connectedClients[websocketToken];
-        const stream = fs.createReadStream(path.resolve("test/test.jpg"));
-        client.emit = jest.fn((type, { uuid }) => {
-          onceFunc?.[uuid]?.(stream, { contentType: "image/jpeg" });
-          delete onceFunc[uuid];
-        });
+
         const { statusCode, body, headers } = await app.inject({
           method: "GET",
           url: `${url}/thumbnail`,
@@ -265,14 +354,14 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       test("GET /metadata", async () => {
-        const client = app.connectedClients[websocketToken];
-        client.once = jest.fn((uuid, fn) => {
-          onceFunc[uuid] = fn;
-        });
-        client.emit = jest.fn((type, { uuid }) => {
-          onceFunc?.[uuid]?.(defaultResponse);
-          delete onceFunc[uuid];
-        });
+        app.io.in = jest.fn(() => ({
+          timeout: jest.fn(() => ({
+            emit: jest.fn((_type, _args, callback) => {
+              callback(null, [{ success: true, data: defaultResponse }]);
+            })
+          }))
+        }));
+
         const { statusCode, body } = await app.inject({
           method: "GET",
           url: `${url}/metadata`,
@@ -298,20 +387,14 @@ describe("Dicom Websocket Bridge", () => {
       buff.push(fileBuff);
       buff.push(Buffer.from("\r\n"));
       buff.push(Buffer.from(`${boundary}--`));
-      SocketIOStream.mockImplementation(() => ({
-        emit: jest.fn(() => undefined)
+
+      app.io.in = jest.fn(() => ({
+        timeout: jest.fn(() => ({
+          emit: jest.fn((_type, _body, _headers, callback) => {
+            callback(null, { success: true, data: defaultResponse });
+          })
+        }))
       }));
-      SocketIOStream.createStream = jest.fn().mockImplementation(() => (
-        jest.requireActual("@wearemothership/socket.io-stream").createStream()
-      ));
-      const client = app.connectedClients[websocketToken];
-      client.once = jest.fn((uuid, fn) => {
-        onceFunc[uuid] = fn;
-      });
-      client.emit = jest.fn((type, { uuid }) => {
-        onceFunc?.[uuid]?.(defaultResponse);
-        delete onceFunc[uuid];
-      });
 
       const { statusCode, body } = await app.inject({
         method: "POST",
@@ -323,7 +406,6 @@ describe("Dicom Websocket Bridge", () => {
           accepts: "application/json"
         }
       });
-
       expect(statusCode).toEqual(200);
       expect(body).toStrictEqual(defaultResponse);
     });
@@ -337,23 +419,20 @@ describe("Dicom Websocket Bridge", () => {
     ];
 
     test.each(wadoQueries)("GET /viewer/wadouri $id", async (props) => {
-      const client = app.connectedClients[websocketToken];
-      client.once = jest.fn((uuid, fn) => {
-        onceFunc[uuid] = fn;
-      });
-      client.emit = jest.fn((type, { uuid, query }) => {
-        const paramIn = new URLSearchParams(query);
-        const result = {};
-        // eslint-disable-next-line no-restricted-syntax
-        for (const [key, val] of paramIn.entries()) {
-          result[key] = val;
-        }
-        onceFunc?.[uuid]?.({
-          contentType: "application/json",
-          buffer: result
-        });
-        delete onceFunc[uuid];
-      });
+      app.io.in = jest.fn(() => ({
+        timeout: jest.fn(() => ({
+          emit: jest.fn((_type, { query }, callback) => {
+            const paramIn = new URLSearchParams(query);
+            const result = {};
+            // eslint-disable-next-line no-restricted-syntax
+            for (const [key, val] of paramIn.entries()) {
+              result[key] = val;
+            }
+            callback(null, { contentType: "application/json", buffer: result });
+          })
+        }))
+      }));
+
       const { StudyUID, SeriesUID, ObjectUID } = props;
       const params = new URLSearchParams({ StudyUID });
       if (SeriesUID) {

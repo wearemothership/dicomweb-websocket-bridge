@@ -8,6 +8,7 @@ import fastifyHelmet from "@fastify/helmet";
 import fastifyCompress from "@fastify/compress";
 import clientsPlugin from "./clientsPlugin";
 import emittersPlugin from "./emitters";
+import callQueuePlugin from "./callQueuePlugin";
 import utils from "./utils";
 import routes from "./routes";
 import {
@@ -21,6 +22,7 @@ const initServer = async () => {
     const fastify = Fastify({ logger: false, bodyLimit: 20971520 });
 
     await fastify.register(clientsPlugin);
+    await fastify.register(callQueuePlugin);
     await fastify.register(emittersPlugin);
     await fastify.register(fastifyStatic, {
       root: path.join(__dirname, "../public"),
@@ -37,26 +39,42 @@ const initServer = async () => {
 
     fastify.decorateRequest("websocketToken", websocketToken);
 
-    fastify.addHook("onRequest", async (request) => {
-      const { headers } = request;
-      const token = headers.authorization?.replace(/bearer /ig, "");
-      if (token) {
-        try {
-          const { websocketToken: wst } = jsonwebtoken.verify(
-            token,
-            pacsSecret,
-            { issuer: pacsIssuer }
-          );
-          request.websocketToken = wst || defaultToken;
+    fastify.addHook("onRequest", async (request, reply) => {
+      try {
+        const { io } = fastify;
+        const { headers } = request;
+        const token = headers.authorization?.replace(/bearer /ig, "");
+        let tokenToUse;
+        if (token) {
+          try {
+            const { websocketToken: wst } = jsonwebtoken.verify(
+              token,
+              pacsSecret,
+              { issuer: pacsIssuer }
+            );
+            tokenToUse = wst || defaultToken;
+          }
+          catch (e) {
+            logger.warn("[onRequest] Using default token", e);
+            tokenToUse = defaultToken;
+          }
         }
-        catch (e) {
-          logger.warn("[onRequest] Using default token", e);
-          request.websocketToken = defaultToken;
+        else {
+          logger.warn("[onRequest] Using default token");
+          tokenToUse = defaultToken;
+        }
+        const socks = await io.fetchSockets();
+        if (socks.find((s) => s.rooms.has(tokenToUse))) {
+          request.websocketToken = tokenToUse;
+        }
+        else {
+          logger.error("Token not valid");
+          reply.status(401).send();
         }
       }
-      else {
-        logger.warn("[onRequest] Using default token");
-        request.websocketToken = defaultToken;
+      catch (e) {
+        logger.error("[onRequest]", e);
+        reply.status(500).send(e);
       }
     });
 

@@ -1,7 +1,18 @@
-import type { Socket, Server } from "socket.io";
+import type { Server } from "socket.io";
 import type { FastifyReply } from "fastify";
 import utils from "./utils";
 import initServer from "./initFastify";
+
+export interface AddToQueue {
+  socketId: string,
+  type: "wado-request" | "qido-request" | "stow-request",
+  callback: (err: null | Error, data?: Buffer | string, headers?: Record<string, string>) => void,
+  level?: string,
+  query?: Record<string, string>,
+  body?: Buffer,
+  headers?: Record<string, string>,
+  oldUuid?: string
+}
 
 /* eslint-disable no-unused-vars */
 declare module "fastify" {
@@ -15,8 +26,8 @@ declare module "fastify" {
     emitToStowRsClient: (
       reply: FastifyReply, body: Buffer, token: string, type: string
     ) => void,
-    connectedClients: Record<string, Socket>,
-    io: Server
+    io: Server,
+    addToQueue: (args: AddToQueue) => void
   }
   interface FastifyRequest {
     websocketToken: string;

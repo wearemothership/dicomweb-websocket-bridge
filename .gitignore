@@ -6,6 +6,7 @@ keycloak.json
 data
 *.pem
 build/
+*.txt
 
 # Logs
 logs

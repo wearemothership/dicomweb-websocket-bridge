@@ -1,73 +1,61 @@
-import { v4 as uuidv4 } from "uuid";
-import SocketIOStream from "@wearemothership/socket.io-stream";
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import utils from "./utils";
 
 const emittersPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
-  const { connectedClients } = fastify;
+  const { addToQueue } = fastify;
+
   const emitToWsClient = (
     reply,
     level,
     query,
     token
   ): Promise<void> => new Promise((resolve) => {
-    const client = connectedClients[token];
-    if (!client || client.handshake.auth.token !== token) {
-      const msg = "no ws client connected, cannot emit";
-      logger.error(msg);
-      reply.status(401).send(msg);
-      resolve();
-    }
-    else {
-      const uuid = uuidv4();
-      client.once(uuid, (data) => {
-        if (data instanceof Error) {
-          reply.status(500);
+    logger.info("QIDO-RS Request");
+    addToQueue({
+      socketId: token,
+      type: "qido-request",
+      level,
+      query,
+      callback: (err, response) => {
+        if (err) {
+          reply.status(500).send(err);
+          logger.error("QIDO-RS", err);
+          resolve();
+          return;
         }
-        reply.send(data);
+        reply.send(response);
         resolve();
-      });
-      client.emit("qido-request", { level, query, uuid });
-    }
+      }
+    });
   });
 
   fastify.decorate("emitToWsClient", emitToWsClient);
 
-  const emitToWadoWsClient = (reply, query, token): Promise<void> => new Promise((resolve) => {
-    const client = connectedClients[token];
-    if (!client || client.handshake.auth.token !== token) {
-      const msg = "no ws client connected, cannot emit";
-      logger.error(msg);
-      reply.status(401).send(msg);
-      resolve();
-    }
-    else {
-      const uuid = uuidv4();
-      SocketIOStream(client, {}).on(uuid, (stream, headers) => {
-        const { contentType } = headers ?? {};
-        reply.status(200);
-        reply.header("content-type", contentType);
-        const bufferData: Buffer[] = [];
-        stream.on("data", (data) => {
-          bufferData.push(data);
-        });
-        stream.on("end", () => {
-          const b = Buffer.concat(bufferData);
-          reply.send(b);
-          resolve();
-        });
-      });
-      client.on(uuid, (resp) => {
-        if (resp instanceof Error) {
-          reply.status(500).send(resp);
+  const emitToWadoWsClient = (reply, query, token): Promise<void> => new Promise(
+    (resolve) => {
+      logger.info("WADO-RS Request");
+      addToQueue({
+        socketId: token,
+        type: "wado-request",
+        query,
+        callback: (err, response, headers) => {
+          if (err || !response || !headers) {
+            reply.status(500).send("No response stream");
+            logger.error("WADO-RS", response, headers);
+            resolve();
+            return;
+          }
+          const { contentType } = headers ?? {};
+          reply.status(200);
+          reply.header("content-type", contentType);
+          reply.send(response);
           resolve();
         }
       });
-      client.emit("wado-request", { query, uuid });
     }
-  });
+  );
 
   fastify.decorate("emitToWadoWsClient", emitToWadoWsClient);
 
@@ -77,46 +65,23 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     token,
     type
   ): Promise<void> => new Promise((resolve) => {
-    const client = connectedClients[token];
-    if (!client || client.handshake.auth.token !== token) {
-      const msg = "no ws client connected, cannot emit";
-      logger.error(msg);
-      reply.status(401).send(msg);
-      resolve();
-    }
-    else {
-      const uuid = uuidv4();
-      const stream = SocketIOStream.createStream({});
-      SocketIOStream(client, {}).emit("stow-request", stream, { contentType: type, uuid });
-      client.once(uuid, (data) => {
-        if (data instanceof Error) {
-          reply.status(500);
+    logger.info("STOW-RS Request", body.length);
+    addToQueue({
+      socketId: token,
+      type: "stow-request",
+      body,
+      headers: { contentType: type },
+      callback: (err, response) => {
+        if (err || !response) {
+          reply.status(500).send("STOW-RS Failed", err);
+          logger.error("STOW-RS", response);
+          resolve();
+          return;
         }
-        reply.send(data);
+        reply.send(response);
         resolve();
-      });
-      logger.info(body.length, token, type);
-      let offset = 0;
-      const chunkSize = 512 * 1024; // 512kb
-      const writeBuffer = () => {
-        let ok = true;
-        do {
-          const b = Buffer.alloc(chunkSize);
-          body.copy(b, 0, offset, offset + chunkSize);
-          ok = stream.write(b);
-          offset += chunkSize;
-        } while (offset < body.length && ok);
-        if (offset < body.length) {
-          stream.once("drain", writeBuffer);
-        }
-        else {
-          stream.end();
-        }
-      };
-      writeBuffer();
-
-      client.emit("stow-request", { type, body, uuid });
-    }
+      }
+    });
   });
 
   fastify.decorate("emitToStowRsClient", emitToStowRsClient);
