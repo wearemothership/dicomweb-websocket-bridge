@@ -11,8 +11,7 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     level,
     query,
     token
-  // eslint-disable-next-line no-async-promise-executor
-  ): Promise<void> => new Promise(async (resolve) => {
+  ): Promise<void> => new Promise((resolve) => {
     logger.info("QIDO-RS Request");
     addToQueue({
       socketId: token,
@@ -35,8 +34,7 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
   fastify.decorate("emitToWsClient", emitToWsClient);
 
   const emitToWadoWsClient = (reply, query, token): Promise<void> => new Promise(
-    // eslint-disable-next-line no-async-promise-executor
-    async (resolve) => {
+    (resolve) => {
       logger.info("WADO-RS Request");
       addToQueue({
         socketId: token,
