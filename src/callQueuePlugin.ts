@@ -85,6 +85,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             delete retryCount[uuid];
             callCount[socketId] -= 1;
             processQueueForSocket(socketId);
+            return;
           }
         }
         if (!buffer || buffer.length === 0) {
@@ -99,6 +100,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             delete retryCount[uuid];
             callCount[socketId] -= 1;
             processQueueForSocket(socketId);
+            return;
           }
         }
         callback(null, buffer, headers);
@@ -122,6 +124,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             delete retryCount[uuid];
             callCount[socketId] -= 1;
             processQueueForSocket(socketId);
+            return;
           }
         }
         if (!response) {
@@ -136,6 +139,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             delete retryCount[uuid];
             callCount[socketId] -= 1;
             processQueueForSocket(socketId);
+            return;
           }
         }
         const { success, data } = response;
@@ -151,6 +155,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
             delete retryCount[uuid];
             callCount[socketId] -= 1;
             processQueueForSocket(socketId);
+            return;
           }
         }
         callback(null, data ?? response);
