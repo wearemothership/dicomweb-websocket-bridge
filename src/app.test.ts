@@ -375,7 +375,7 @@ describe("Dicom Websocket Bridge", () => {
       });
     });
 
-    test.only("POST /viewer/rs/studies", async () => {
+    test("POST /viewer/rs/studies", async () => {
       const fileBuff = await fs.promises.readFile(path.resolve("test/testDICOM.dcm"));
       const boundary = `--${uuid4()}`;
       const buff: Buffer[] = [];
