@@ -375,9 +375,9 @@ describe("Dicom Websocket Bridge", () => {
       });
     });
 
-    test("POST /viewer/rs/studies", async () => {
+    test.only("POST /viewer/rs/studies", async () => {
       const fileBuff = await fs.promises.readFile(path.resolve("test/testDICOM.dcm"));
-      const boundary = "----TEST_BOUNDARY";
+      const boundary = `--${uuid4()}`;
       const buff: Buffer[] = [];
       buff.push(Buffer.from(boundary));
       buff.push(Buffer.from("\r\n"));
@@ -402,10 +402,11 @@ describe("Dicom Websocket Bridge", () => {
         body: Buffer.concat(buff),
         headers: {
           authorization: `Bearer ${validToken}`,
-          "content-type": `multipart/related;type='application/dicom';boundary=${boundary}`,
+          "content-type": `multipart/related; type="application/dicom"; boundary=${boundary}`,
           accepts: "application/json"
         }
       });
+
       expect(statusCode).toEqual(200);
       expect(JSON.parse(body)).toEqual(expect.objectContaining({
         success: true,
