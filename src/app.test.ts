@@ -207,7 +207,7 @@ describe("Dicom Websocket Bridge", () => {
 
   describe("Test Routes", () => {
     let socket;
-    const defaultResponse = JSON.stringify({ test: "response" });
+    const defaultResponse = { test: "response" };
     beforeEach(() => new Promise<void>((resolve, reject) => {
       socket = socketIOClient(
         "http://0.0.0.0:6001",
@@ -251,7 +251,7 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       expect(statusCode).toEqual(200);
-      expect(body).toEqual(defaultResponse);
+      expect(JSON.parse(body)).toEqual(defaultResponse);
     });
 
     const wadoRequests = [
@@ -371,7 +371,7 @@ describe("Dicom Websocket Bridge", () => {
         });
 
         expect(statusCode).toEqual(200);
-        expect(body).toEqual(defaultResponse);
+        expect(JSON.parse(body)).toEqual(defaultResponse);
       });
     });
 
@@ -407,7 +407,10 @@ describe("Dicom Websocket Bridge", () => {
         }
       });
       expect(statusCode).toEqual(200);
-      expect(body).toStrictEqual(defaultResponse);
+      expect(JSON.parse(body)).toEqual(expect.objectContaining({
+        success: true,
+        data: defaultResponse
+      }));
     });
 
     const wadoQueries = [
