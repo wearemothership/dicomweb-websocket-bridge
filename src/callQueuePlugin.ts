@@ -18,6 +18,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       if (callQueue[sid].length > 0 && (callCount[sid] + 1 <= MAX_CALLS)) {
         callCount[sid] += 1;
         const callArgs = callQueue[sid].shift();
+        logger.info(`Calling ${callArgs.type} (${callArgs.uuid})`);
         doCall({ socketId: sid, ...callArgs });
       }
     };
@@ -57,6 +58,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
           processError(`[WADO-RS] Empty Buffer ${uuid}`);
           return;
         }
+        logger.info(`Completed call ${uuid}`);
         callback(null, buffer, headers);
         callCount[socketId] -= 1;
         processQueueForSocket(socketId);
@@ -78,6 +80,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
           processError(`[${type.toUpperCase()}] call failed ${uuid}`);
           return;
         }
+        logger.info(`Completed call ${uuid}`);
         callback(null, data ?? response);
         callCount[socketId] -= 1;
         processQueueForSocket(socketId);
