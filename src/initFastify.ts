@@ -8,6 +8,7 @@ import fastifyHelmet from "@fastify/helmet";
 import fastifyCompress from "@fastify/compress";
 import clientsPlugin from "./clientsPlugin";
 import emittersPlugin from "./emitters";
+import callQueuePlugin from "./callQueuePlugin";
 import utils from "./utils";
 import routes from "./routes";
 import {
@@ -21,6 +22,7 @@ const initServer = async () => {
     const fastify = Fastify({ logger: false, bodyLimit: 20971520 });
 
     await fastify.register(clientsPlugin);
+    await fastify.register(callQueuePlugin);
     await fastify.register(emittersPlugin);
     await fastify.register(fastifyStatic, {
       root: path.join(__dirname, "../public"),

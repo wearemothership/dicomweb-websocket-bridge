@@ -11,7 +11,7 @@ export interface AddToQueue {
   query?: Record<string, string>,
   body?: Buffer,
   headers?: Record<string, string>,
-  oldUuid?: string
+  uuid?: string
 }
 
 /* eslint-disable no-unused-vars */
