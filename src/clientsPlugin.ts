@@ -112,7 +112,6 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
 
     // Decorate Fastify instance with Socket.IO server
     fastify.decorate("io", io);
-    return io;
   }
   catch (e) {
     logger.error("[clientsPlugin]", e);

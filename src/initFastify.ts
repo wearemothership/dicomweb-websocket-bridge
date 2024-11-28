@@ -42,7 +42,7 @@ const initServer = async () => {
     await fastify.register(fastifyCompress, { global: true }); // Enable compression globally
 
     // Decorate request with multipart property
-    fastify.decorateRequest("multipart", "");
+    fastify.decorateRequest("multipart");
     fastify.addContentTypeParser("multipart/related", { parseAs: "buffer" }, async (request, payload) => {
       request.multipart = payload; // Parse multipart/related content
     });
