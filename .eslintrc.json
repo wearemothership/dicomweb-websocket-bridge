@@ -5,7 +5,8 @@
         "jest": true
     },
     "extends": [
-        "airbnb-base"
+        "airbnb-base",
+        "plugin:@typescript-eslint/recommended"
     ],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
@@ -24,6 +25,9 @@
             "js": "never",
             "ts": "never",
             "json": "always"
+        }],
+        "max-len": ["error", {
+            "code": 120
         }],
         "semi": ["error", "always"],
         "import/default": 0,

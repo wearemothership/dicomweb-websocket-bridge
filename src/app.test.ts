@@ -78,6 +78,7 @@ describe("Dicom Websocket Bridge", () => {
     app.io.in = jest.fn(() => ({
       timeout: jest.fn(() => ({
         emit: jest.fn((_type, _args, callback) => {
+          // eslint-disable-next-line no-console
           console.error("Default emit called");
           callback();
         })
@@ -415,7 +416,10 @@ describe("Dicom Websocket Bridge", () => {
       { id: "StudyUID", StudyUID: "1.2.345.67890" },
       { id: "StudyUID & SeriesUID", StudyUID: "1.2.345.67890", SeriesUID: "1.2.098.76543" },
       {
-        id: "StudyUID, SeriesUID & ObjectUID", StudyUID: "1.2.345.67890", SeriesUID: "1.2.098.76543", ObjectUID: "1.2.678.09543"
+        id: "StudyUID, SeriesUID & ObjectUID",
+        StudyUID: "1.2.345.67890",
+        SeriesUID: "1.2.098.76543",
+        ObjectUID: "1.2.678.09543"
       }
     ];
 
