@@ -37,7 +37,7 @@
     "@socket.io/redis-adapter": "^8.3.0",
     "@wearemothership/socket.io-stream": "^0.9.1",
     "dotenv-safe": "^9.1.0",
-    "fastify": "^4.28.1",
+    "fastify": "^5.1.0",
     "fastify-plugin": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
     "redis": "^4.7.0",
