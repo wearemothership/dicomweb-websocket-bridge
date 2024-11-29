@@ -10,7 +10,6 @@ import fastifyStatic from "@fastify/static";
 import fastifyCors from "@fastify/cors";
 import fastifySensible from "@fastify/sensible";
 import fastifyHelmet from "@fastify/helmet";
-import fastifyCompress from "@fastify/compress";
 import clientsPlugin from "./clientsPlugin";
 import emittersPlugin from "./emitters";
 import utils from "./utils";
@@ -36,13 +35,14 @@ const initServer = async () => {
     await fastify.register(fastifyStatic, {
       root: path.join(__dirname, "../public"), // Serve static files from the public directory
     });
-    await fastify.register(fastifyCors, {}); // Enable CORS
+    await fastify.register(fastifyCors, {
+      origin: true
+    }); // Enable CORS
     await fastify.register(fastifySensible); // Register sensible utilities
     await fastify.register(fastifyHelmet, { contentSecurityPolicy: false }); // Register helmet for security
-    await fastify.register(fastifyCompress, { global: true }); // Enable compression globally
 
     // Decorate request with multipart property
-    fastify.decorateRequest("multipart", "");
+    fastify.decorateRequest("multipart");
     fastify.addContentTypeParser("multipart/related", { parseAs: "buffer" }, async (request, payload) => {
       request.multipart = payload; // Parse multipart/related content
     });
