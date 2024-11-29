@@ -12,6 +12,7 @@ import fastifySensible from "@fastify/sensible";
 import fastifyHelmet from "@fastify/helmet";
 import clientsPlugin from "./clientsPlugin";
 import emittersPlugin from "./emitters";
+import callQueuePlugin from "./callQueuePlugin";
 import utils from "./utils";
 import routes from "./routes";
 import {
@@ -31,6 +32,7 @@ const initServer = async () => {
 
     // Register various plugins
     await fastify.register(clientsPlugin);
+    await fastify.register(callQueuePlugin);
     await fastify.register(emittersPlugin);
     await fastify.register(fastifyStatic, {
       root: path.join(__dirname, "../public"), // Serve static files from the public directory

@@ -18,7 +18,7 @@ import utils from "./utils";
  */
 const emittersPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
-  const { io } = fastify;
+  const { addToQueue } = fastify;
 
   /**
    * Emits a QIDO-RS request to the WebSocket client.
@@ -36,27 +36,22 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     token
   ): Promise<void> => new Promise((resolve) => {
     logger.info("QIDO-RS Request");
-    io.in(token).timeout(20000).emit(
-      "qido-request",
-      { level, query },
-      (err, response) => {
-        if (err || !response) {
-          logger.error(`[QIDO-RS] Error ${err}`);
-          reply.status(500).send(`[QIDO-RS] Error ${err}`);
-          return resolve();
+    addToQueue({
+      socketId: token,
+      type: "qido-request",
+      level,
+      query,
+      callback: (err, response) => {
+        if (err) {
+          reply.status(500).send(err);
+          logger.error("QIDO-RS", err);
+          resolve();
+          return;
         }
-        const { success, data } = Array.isArray(response)
-          ? response[0] ?? response[1]
-          : response;
-        if (!success) {
-          logger.error("[QIDO-RS] Failed");
-          reply.status(500).send("[QIDO-RS] Failed");
-          return resolve();
-        }
-        reply.status(200).send(data);
-        return resolve();
+        reply.send(response);
+        resolve();
       }
-    );
+    });
   });
 
   // Decorate the Fastify instance with the emitToWsClient method
@@ -73,30 +68,23 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
   const emitToWadoWsClient = (reply, query, token): Promise<void> => new Promise(
     (resolve) => {
       logger.info("WADO-RS Request");
-      io.in(token).timeout(20000).emit("wado-request", { query }, (err, response) => {
-        if (err || !response) {
-          logger.error(`[WADO-RS] No Response or error ${err}`);
-          reply.status(500).send(`[WADO-RS] No Response or error ${err}`);
-          return resolve();
+      addToQueue({
+        socketId: token,
+        type: "wado-request",
+        query,
+        callback: (err, response, headers) => {
+          if (err || !response || !headers) {
+            reply.status(500).send("No response stream");
+            logger.error("WADO-RS", response, headers);
+            resolve();
+            return;
+          }
+          const { contentType } = headers ?? {};
+          reply.status(200);
+          reply.header("content-type", contentType);
+          reply.send(response);
+          resolve();
         }
-        const { buffer, headers, success } = Array.isArray(response)
-          ? response[0] ?? response[1]
-          : response;
-        if (!success) {
-          logger.error("[WADO-RS] Failed");
-          reply.status(500).send("[WADO-RS] Failed");
-          return resolve();
-        }
-        if (!buffer || buffer.length === 0) {
-          logger.error("[WADO-RS] Empty Buffer");
-          reply.status(500).send("[WADO-RS] Empty Buffer");
-          return resolve();
-        }
-        const { contentType } = headers ?? {};
-        reply.status(200);
-        reply.header("content-type", contentType);
-        reply.send(buffer);
-        return resolve();
       });
     }
   );
@@ -120,28 +108,22 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     type
   ): Promise<void> => new Promise((resolve) => {
     logger.info("STOW-RS Request", body.length);
-    io.in(token).timeout(20000).emit(
-      "stow-request",
+    addToQueue({
+      socketId: token,
+      type: "stow-request",
       body,
-      { contentType: type },
-      (err, response) => {
+      headers: { contentType: type },
+      callback: (err, response) => {
         if (err || !response) {
-          logger.error(`[STOW-RS] Error ${err}`);
-          reply.status(500).send(`[STOW-RS] Error ${err}`);
-          return resolve();
+          reply.status(500).send("STOW-RS Failed", err);
+          logger.error("STOW-RS", response);
+          resolve();
+          return;
         }
-        const { success } = Array.isArray(response)
-          ? response[0] ?? response[1]
-          : response;
-        if (!success) {
-          logger.error("[STOW-RS] Failed");
-          reply.status(500).send("[STOW-RS] Failed");
-          return resolve();
-        }
-        reply.status(200).send(response);
-        return resolve();
+        reply.send(response);
+        resolve();
       }
-    );
+    });
   });
 
   // Decorate the Fastify instance with the emitToStowRsClient method

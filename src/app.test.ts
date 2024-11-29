@@ -409,10 +409,7 @@ describe("Dicom Websocket Bridge", () => {
       });
 
       expect(statusCode).toEqual(200);
-      expect(JSON.parse(body)).toEqual(expect.objectContaining({
-        success: true,
-        data: defaultResponse
-      }));
+      expect(JSON.parse(body)).toEqual(expect.objectContaining(defaultResponse));
     });
 
     const wadoQueries = [
