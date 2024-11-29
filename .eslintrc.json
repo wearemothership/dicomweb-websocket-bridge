@@ -25,6 +25,9 @@
             "ts": "never",
             "json": "always"
         }],
+        "max-len": ["error", {
+            "code": 120
+        }],
         "semi": ["error", "always"],
         "import/default": 0,
         "comma-dangle": "off",

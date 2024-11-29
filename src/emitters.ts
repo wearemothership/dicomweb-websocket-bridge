@@ -1,11 +1,34 @@
+/**
+ * @fileOverview This module provides a Fastify plugin for emitting messages to WebSocket clients.
+ * It includes methods for handling QIDO-RS, WADO-RS, and STOW-RS requests.
+ *
+ * This plugin allows the Fastify server to communicate with WebSocket clients
+ * by emitting specific types of requests and handling their responses.
+ */
+
 import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import utils from "./utils";
 
+/**
+ * Fastify plugin to add WebSocket emitting capabilities.
+ *
+ * @param {FastifyInstance} fastify - The Fastify instance.
+ * @returns {Promise<void>} A promise that resolves when the plugin is registered.
+ */
 const emittersPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
   const { io } = fastify;
 
+  /**
+   * Emits a QIDO-RS request to the WebSocket client.
+   *
+   * @param {Object} reply - The Fastify reply object.
+   * @param {string} level - The level of the request.
+   * @param {Object} query - The query parameters for the request.
+   * @param {string} token - The WebSocket token for the client.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const emitToWsClient = (
     reply,
     level,
@@ -36,8 +59,17 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     );
   });
 
+  // Decorate the Fastify instance with the emitToWsClient method
   fastify.decorate("emitToWsClient", emitToWsClient);
 
+  /**
+   * Emits a WADO-RS request to the WebSocket client.
+   *
+   * @param {Object} reply - The Fastify reply object.
+   * @param {Object} query - The query parameters for the request.
+   * @param {string} token - The WebSocket token for the client.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const emitToWadoWsClient = (reply, query, token): Promise<void> => new Promise(
     (resolve) => {
       logger.info("WADO-RS Request");
@@ -69,8 +101,18 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     }
   );
 
+  // Decorate the Fastify instance with the emitToWadoWsClient method
   fastify.decorate("emitToWadoWsClient", emitToWadoWsClient);
 
+  /**
+   * Emits a STOW-RS request to the WebSocket client.
+   *
+   * @param {Object} reply - The Fastify reply object.
+   * @param {Object} body - The body of the request.
+   * @param {string} token - The WebSocket token for the client.
+   * @param {string} type - The content type of the request.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const emitToStowRsClient = (
     reply,
     body,
@@ -102,6 +144,7 @@ const emittersPlugin = async (fastify: FastifyInstance) => {
     );
   });
 
+  // Decorate the Fastify instance with the emitToStowRsClient method
   fastify.decorate("emitToStowRsClient", emitToStowRsClient);
 };
 

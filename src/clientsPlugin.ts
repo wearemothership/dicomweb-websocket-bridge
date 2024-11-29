@@ -1,3 +1,9 @@
+/**
+ * @fileOverview This file contains the clientsPlugin which sets up a WebSocket server
+ * using Socket.IO and Redis for pub/sub messaging. It handles both secure and insecure
+ * server configurations and manages incoming WebSocket connections.
+ */
+
 import { Server, ServerOptions } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
@@ -13,11 +19,17 @@ import {
   certPath, certChainPath, certRevPath, knownOrigins
 } from "./config";
 
+/**
+ * Clients plugin for Fastify that initializes a WebSocket server.
+ * @param {FastifyInstance} fastify - The Fastify instance.
+ * @returns {Promise<Server>} The initialized Socket.IO server.
+ */
 const clientsPlugin = async (fastify: FastifyInstance) => {
   const logger = utils.getLogger();
   try {
     let webServer;
 
+    // Create a secure or insecure server based on the configuration
     if (secure) {
       logger.info("Starting secure server");
       webServer = httpsServer.createServer({
@@ -34,6 +46,7 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       webServer = httpServer.createServer();
     }
 
+    // Configure Socket.IO options
     const ioOptions: Partial<ServerOptions> | undefined = withCors ? {
       cors: {
         origin: knownOrigins,
@@ -45,9 +58,12 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       maxHttpBufferSize: 2e8 // 200MB
     } : undefined;
 
+    // Initialize Socket.IO server
     const io = new Server(webServer, ioOptions);
     const pubClient = createClient({ url: "redis://localhost:6379" });
     const subClient = pubClient.duplicate();
+
+    // Set up Redis client event listeners
     pubClient.on("error", (err) => logger.error("[pubClient] Redis Client Error", err));
     pubClient.on("connect", () => logger.info("[pubClient] Connect"));
     pubClient.on("reconnecting", () => logger.info("[pubClient] Reconnecting"));
@@ -57,7 +73,11 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
     subClient.on("reconnecting", () => logger.info("[subClient] Reconnecting"));
     subClient.on("ready", () => logger.info("[subClient] Ready"));
     subClient.on("disconnect", (reason) => logger.info(`[subClient] Disconnect ${reason}`));
+
+    // Connect to Redis clients
     await Promise.all([pubClient.connect(), subClient.connect()]);
+
+    // Set up the Socket.IO adapter with Redis
     io.adapter(createAdapter(
       pubClient,
       subClient,
@@ -66,10 +86,12 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
         publishOnSpecificResponseChannel: true
       }
     ));
+
+    // Start the web server
     webServer.listen(websocketPort);
     logger.info(`websocket-server listening on port: ${websocketPort}`);
 
-    // incoming websocket connections are registered here
+    // Handle incoming WebSocket connections
     io.on("connection", (socket) => {
       const origin = socket.conn.remoteAddress;
       logger.info(`websocket client connected from origin: ${origin}`);
@@ -78,14 +100,17 @@ const clientsPlugin = async (fastify: FastifyInstance) => {
       socketIOStream(socket);
       socket.join(token);
 
+      // Handle socket errors
       socket.on("error", (err) => logger.error(`Socket Error ${err.message}`));
 
+      // Handle socket disconnection
       socket.on("disconnect", (reason) => {
         logger.info(`websocket client disconnected, origin: ${origin}, reason: ${reason}`);
         socket.join(token);
       });
     });
 
+    // Decorate Fastify instance with Socket.IO server
     fastify.decorate("io", io);
     return io;
   }
